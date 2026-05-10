@@ -1,0 +1,236 @@
+{% extends 'admin_base.html' %}
+{% block title %}Partidos — {{ event.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="text-muted small">
+      <i class="bi bi-arrow-left me-1"></i>{{ event.name }}
+    </a>
+    <h1 style="font-size: 1.8rem; margin: .25rem 0 0;">📅 Partidos</h1>
+  </div>
+</div>
+
+<!-- Phase filter -->
+<div class="card-custom mb-4">
+  <div class="card-body-custom">
+    <label class="form-label-custom">Filtrar por Fase</label>
+    <select id="phase-filter-select" class="form-control-custom" style="max-width: 300px;">
+      {% for phase in phases %}
+        <option value="{{ phase.id }}" {% if selected_phase and phase.id == selected_phase.id %}selected{% endif %}>
+          {{ phase.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+{% if selected_phase %}
+<!-- New match form -->
+<div class="card-custom mb-4">
+  <div class="card-header-custom"><i class="bi bi-plus-circle me-2"></i>Nuevo Partido — {{ selected_phase.name }}</div>
+  <div class="card-body-custom">
+    {% if is_knockout and not all_teams %}
+      <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-0" style="background: rgba(255,193,7,.1); color: #856404; border-radius: 12px; padding: 1.5rem;">
+        <i class="bi bi-exclamation-triangle-fill fs-3 me-3"></i>
+        <div>
+          <h6 class="mb-1 fw-bold">Aún no hay equipos clasificados disponibles para esta fase</h6>
+          <p class="mb-0 small">El sistema requiere que los partidos de la fase anterior estén finalizados y con resultados cargados para determinar qué equipos avanzan.</p>
+        </div>
+      </div>
+    {% else %}
+    <form method="POST" action="{{ url_for('admin.matches_new', event_id=event.id) }}" class="row g-3 align-items-end">
+      {% set is_group_phase = false %}
+      {% if selected_phase and (('grupo' in selected_phase.name|lower) or (selected_phase.phase_order == 1)) %}
+        {% set is_group_phase = true %}
+      {% endif %}
+
+      <input type="hidden" name="phase_id" value="{{ selected_phase.id }}">
+      
+      {% if is_group_phase %}
+      <div class="col-12 col-md-2" id="group-col">
+        <label class="form-label-custom">Grupo *</label>
+        <select name="group_id" id="match_group_id" class="form-control-custom" required>
+          <option value="">— Grupo —</option>
+          {% for group in groups %}
+            <option value="{{ group.id }}">Grupo {{ group.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div class="col-12 {% if is_group_phase %}col-md-3{% else %}col-md-4{% endif %}">
+        <label class="form-label-custom">Equipo Local *</label>
+        <select name="home_team_id" id="home_team_id" class="form-control-custom" required {% if is_group_phase %}disabled{% endif %}>
+          <option value="">— Seleccionar —</option>
+          {% for team in all_teams %}
+            <option value="{{ team.id }}" data-group-id="{{ team_group_map.get(team.id, '') }}">{{ team.flag_emoji }} {{ team.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-12 {% if is_group_phase %}col-md-3{% else %}col-md-4{% endif %}">
+        <label class="form-label-custom">Equipo Visitante *</label>
+        <select name="away_team_id" id="away_team_id" class="form-control-custom" required {% if is_group_phase %}disabled{% endif %}>
+          <option value="">— Seleccionar —</option>
+          {% for team in all_teams %}
+            <option value="{{ team.id }}" data-group-id="{{ team_group_map.get(team.id, '') }}">{{ team.flag_emoji }} {{ team.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-12 col-md-2">
+        <label class="form-label-custom">Fecha/Hora</label>
+        <input type="datetime-local" name="match_date" class="form-control-custom">
+      </div>
+      <div class="col-12">
+        <button type="submit" class="btn-primary-custom">
+          <i class="bi bi-plus-lg me-1"></i>Crear Partido
+        </button>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Matches list -->
+<div class="card-custom">
+  <div class="card-header-custom">
+    <i class="bi bi-list-ul me-2"></i>{{ matches|length }} partido(s) — {{ selected_phase.name }}
+  </div>
+  <div class="card-body-custom p-0">
+    {% if matches %}
+    <div class="table-responsive">
+      <table class="table-custom">
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Local</th>
+            <th style="text-align:center;">vs</th>
+            <th>Visitante</th>
+            <th>Grupo</th>
+            <th>Estado</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for match in matches %}
+          <tr>
+            <td style="white-space:nowrap;">
+              <small class="text-muted">
+                {{ match.match_date.strftime('%d/%m %H:%M') if match.match_date else '—' }}
+              </small>
+            </td>
+            <td>
+              {{ match.home_team.flag_emoji }}
+              <strong class="ms-1">{{ match.home_team.name }}</strong>
+            </td>
+            <td style="text-align:center; color: var(--text-muted);">vs</td>
+            <td>
+              <strong>{{ match.away_team.name }}</strong>
+              {{ match.away_team.flag_emoji }}
+            </td>
+            <td><small class="text-muted">{{ match.group.name if match.group else '—' }}</small></td>
+            <td>
+              {% if match.is_finished %}
+                <span class="badge bg-success">{{ match.home_score }}–{{ match.away_score }}</span>
+              {% else %}
+                <span class="badge bg-secondary">Pendiente</span>
+              {% endif %}
+            </td>
+            <td>
+              <form method="POST" action="{{ url_for('admin.matches_delete', match_id=match.id) }}" class="d-inline"
+                    onsubmit="return confirmAction('¿Eliminar este partido?', event);">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="text-center py-4 text-muted">
+        <div style="font-size: 2.5rem;">📅</div>
+        <p class="mt-2">No hay partidos en esta fase.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const groupSelect = document.getElementById('match_group_id');
+  const homeSelect = document.getElementById('home_team_id');
+  const awaySelect = document.getElementById('away_team_id');
+
+  if (groupSelect) {
+    groupSelect.addEventListener('change', function() {
+      const groupId = this.value;
+      
+      // Enable or disable based on group selection
+      if (!groupId) {
+        homeSelect.disabled = true;
+        awaySelect.disabled = true;
+        homeSelect.value = '';
+        awaySelect.value = '';
+      } else {
+        homeSelect.disabled = false;
+        awaySelect.disabled = false;
+      }
+      
+      // Filter options
+      [homeSelect, awaySelect].forEach(select => {
+        select.value = '';
+        Array.from(select.options).forEach(opt => {
+          if (opt.value === '') return;
+          if (opt.dataset.groupId === groupId) {
+            opt.style.display = '';
+            opt.disabled = false;
+          } else {
+            opt.style.display = 'none';
+            opt.disabled = true;
+          }
+        });
+      });
+      
+      updateTeamOptions();
+    });
+  }
+
+  // Prevent same team selection
+  function updateTeamOptions() {
+    const homeVal = homeSelect.value;
+    const awayVal = awaySelect.value;
+    
+    Array.from(awaySelect.options).forEach(opt => {
+      if (opt.value === '') return;
+      if (opt.value === homeVal) {
+        opt.disabled = true;
+      } else if (!groupSelect || opt.dataset.groupId === groupSelect.value || !groupSelect.value) {
+        // If there's no group select (elimination phase) or it matches the group
+        opt.disabled = false;
+      }
+    });
+    
+    Array.from(homeSelect.options).forEach(opt => {
+      if (opt.value === '') return;
+      if (opt.value === awayVal) {
+        opt.disabled = true;
+      } else if (!groupSelect || opt.dataset.groupId === groupSelect.value || !groupSelect.value) {
+        opt.disabled = false;
+      }
+    });
+  }
+
+  if (homeSelect) homeSelect.addEventListener('change', updateTeamOptions);
+  if (awaySelect) awaySelect.addEventListener('change', updateTeamOptions);
+});
+</script>
+{% endblock %}

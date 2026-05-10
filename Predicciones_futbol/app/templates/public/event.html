@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+{% block title %}{{ event.name }} — Polla Mundialera{% endblock %}
+
+{% block content %}
+<!-- Event Header -->
+<div style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%); color: #fff; padding: 3rem 1rem 2rem;">
+  <div class="container">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <span style="font-size: 3.5rem;">{{ event.logo_emoji }}</span>
+      <div>
+        <h1 style="font-size: clamp(1.5rem, 4vw, 2.5rem); font-family: 'Outfit', sans-serif; font-weight: 800; margin: 0;">
+          {{ event.name }}
+        </h1>
+        <span class="event-status-badge {{ event.status }} mt-2 d-inline-block">{{ event.status }}</span>
+        {% if event.description %}
+          <p style="opacity: .75; font-size: .9rem; margin: .5rem 0 0;">{{ event.description }}</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="d-flex gap-4 mt-3 flex-wrap" style="font-size: .9rem; opacity: .85;">
+      <span><i class="bi bi-people-fill me-1"></i>{{ total_participants }} participantes</span>
+      <span><i class="bi bi-check-circle me-1"></i>{{ matches_finished }} partidos jugados</span>
+      <span><i class="bi bi-layers me-1"></i>{{ phases|length }} fases</span>
+    </div>
+  </div>
+</div>
+
+<div class="container py-4">
+  <!-- Section: Participant Header -->
+  <div class="card-custom mb-4" style="border-left: 4px solid var(--gold);">
+    <div class="card-body-custom d-flex justify-content-between align-items-center flex-wrap gap-3">
+      <div class="d-flex align-items-center gap-3">
+        <div class="avatar-circle" style="width: 50px; height: 50px; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-weight: bold; font-size: 1.2rem;">
+          {{ participant.name[0] | upper }}
+        </div>
+        <div>
+          <h4 class="mb-0" style="font-size: 1.1rem; font-weight: 700;">{{ participant.name }}</h4>
+          <span class="text-muted small">Cédula: {{ participant.cedula }}</span>
+        </div>
+      </div>
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('public.my_predictions', event_id=event.id, cedula=participant.cedula) }}" class="btn-dark-custom btn-sm">
+          <i class="bi bi-eye me-1"></i> Mis Predicciones
+        </a>
+        <a href="{{ url_for('public.home') }}" class="btn-outline-custom btn-sm">
+          <i class="bi bi-box-arrow-left me-1"></i> Cambiar Evento
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <!-- Left Column: Actions, Phases, Results -->
+    <div class="col-lg-7">
+      
+      <!-- Participation CTA -->
+      <div class="card-custom mb-4">
+        <div class="card-header-custom"><i class="bi bi-pencil-square me-2"></i>Participación</div>
+        <div class="card-body-custom">
+          {% if open_phase %}
+            {% if has_predicted %}
+              <div class="alert alert-success border-0 d-flex align-items-center gap-3 mb-0">
+                <i class="bi bi-check-circle-fill" style="font-size: 1.5rem;"></i>
+                <div>
+                  <strong>Ya realizaste tu predicción</strong> para la fase "{{ open_phase.name }}".
+                  <p class="mb-0 small opacity-75">¡Mucha suerte! Puedes consultarlas en "Mis Predicciones".</p>
+                </div>
+              </div>
+            {% else %}
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div>
+                  <h5 class="mb-1" style="font-weight: 700;">¡Predicciones Abiertas!</h5>
+                  <p class="text-muted mb-0 small">Fase activa: <strong>{{ open_phase.name }}</strong></p>
+                </div>
+                <a href="{{ url_for('public.participate', event_id=event.id) }}" class="btn-primary-custom py-2 px-4">
+                  <i class="bi bi-play-fill me-1"></i> Hacer mis predicciones
+                </a>
+              </div>
+            {% endif %}
+          {% else %}
+            <div class="alert alert-secondary border-0 d-flex align-items-center gap-3 mb-0">
+              <i class="bi bi-lock-fill" style="font-size: 1.5rem;"></i>
+              <div>
+                <strong>Predicciones cerradas</strong>
+                <p class="mb-0 small opacity-75">El administrador aún no ha abierto una nueva fase para predicciones.</p>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Tournament Progress -->
+      <div class="card-custom mb-4">
+        <div class="card-header-custom"><i class="bi bi-layers me-2"></i>Progreso del Torneo</div>
+        <div class="card-body-custom">
+          {% if phases %}
+          <div class="phase-stepper">
+            {% for phase in phases %}
+            <div class="phase-step {% if phase.is_prediction_open %}open{% else %}closed{% endif %}">
+              <div class="phase-dot"></div>
+              <span style="font-size: 0.85rem; font-weight: 600;">{{ phase.name }}</span>
+              {% if phase.is_prediction_open %}
+                <span class="phase-open-badge ms-1" style="font-size: .65rem; padding: .15rem .4rem;">ABIERTA</span>
+              {% endif %}
+            </div>
+            {% if not loop.last %}
+              <i class="bi bi-chevron-right text-muted" style="font-size: .8rem;"></i>
+            {% endif %}
+            {% endfor %}
+          </div>
+          {% else %}
+            <p class="text-muted mb-0">Fases del torneo por definir.</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Tournament Results -->
+      <div class="card-custom mb-4">
+        <div class="card-header-custom d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-calendar-check me-2"></i>Resultados del Torneo</span>
+        </div>
+        <div class="card-body-custom p-0">
+          {% if all_matches %}
+            {% set current_phase_id = [0] %}
+            {% for match in all_matches %}
+              {% if match.phase_id != current_phase_id[0] %}
+                {% if current_phase_id.append(match.phase_id) %}{% endif %}
+                <div class="bg-light px-3 py-2 small fw-bold text-muted border-bottom border-top mt-{% if not loop.first %}3{% else %}0{% endif %}">
+                  {{ match.phase.name }}
+                </div>
+              {% endif %}
+              <div class="p-3 border-bottom d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-2" style="min-width: 120px;">
+                  <span class="text-muted small">{{ match.match_date.strftime('%d/%m %H:%M') if match.match_date else 'S/D' }}</span>
+                  <span class="badge bg-light text-dark border small">{{ match.match_label or 'Partido' }}</span>
+                </div>
+                <div class="d-flex align-items-center gap-3 justify-content-center flex-grow-1">
+                  <div class="text-end" style="width: 100px;">
+                    <span class="fw-bold small">{{ match.home_team.name }}</span>
+                    <span class="ms-2" style="font-size: 1.2rem;">{{ match.home_team.flag_emoji }}</span>
+                  </div>
+                  <div class="d-flex align-items-center gap-2">
+                    {% if match.is_finished %}
+                      <div class="bg-dark text-white rounded px-2 py-1 fw-bold" style="font-size: 1.1rem; min-width: 60px; text-align: center;">
+                        {{ match.home_score }} - {{ match.away_score }}
+                      </div>
+                    {% else %}
+                      <div class="bg-light text-muted rounded px-2 py-1 small border" style="min-width: 60px; text-align: center;">
+                        VS
+                      </div>
+                    {% endif %}
+                  </div>
+                  <div class="text-start" style="width: 100px;">
+                    <span class="me-2" style="font-size: 1.2rem;">{{ match.away_team.flag_emoji }}</span>
+                    <span class="fw-bold small">{{ match.away_team.name }}</span>
+                  </div>
+                </div>
+                <div style="min-width: 80px; text-align: right;">
+                  {% if match.is_finished %}
+                    <span class="badge bg-success-subtle text-success border-0">Finalizado</span>
+                  {% else %}
+                    <span class="badge bg-warning-subtle text-warning border-0">Pendiente</span>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="bi bi-info-circle mb-2" style="font-size: 2rem; display: block;"></i>
+              Aún no hay resultados registrados.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Navigation & Ranking -->
+    <div class="col-lg-5">
+      
+      <!-- Quick Navigation -->
+      <div class="card-custom mb-4">
+        <div class="card-header-custom"><i class="bi bi-compass me-2"></i>Navegación</div>
+        <div class="card-body-custom">
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('public.group_standings', event_id=event.id) }}" class="btn-outline-custom w-100 justify-content-start py-3 px-4">
+              <i class="bi bi-table me-3"></i> Tabla de Grupos
+            </a>
+            
+            {% if event.can_view_others_predictions %}
+            <a href="{{ url_for('public.ranking', event_id=event.id) }}" class="btn-outline-custom w-100 justify-content-start py-3 px-4">
+              <i class="bi bi-bar-chart me-3"></i> Ranking Completo
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Scoring Teams -->
+      <div class="card-custom mb-4 overflow-hidden" style="border-left: 4px solid var(--gold);">
+        <div class="card-header-custom d-flex align-items-center gap-2">
+          <i class="bi bi-fire text-danger"></i>
+          <span>Equipos más Goleadores</span>
+        </div>
+        <div class="card-body-custom p-0">
+          {% if top_teams %}
+            {% for item in top_teams %}
+            <div class="d-flex align-items-center px-4 py-3 gap-3" style="border-bottom: 1px solid var(--border);">
+              <div class="d-flex align-items-center justify-content-center bg-dark text-white rounded-circle" style="width: 28px; height: 28px; font-size: .75rem; font-weight: 700;">
+                {{ loop.index }}
+              </div>
+              <div style="flex: 1;">
+                <div class="d-flex align-items-center gap-2">
+                  <span style="font-size: 1.2rem;">{{ item.team.flag_emoji }}</span>
+                  <span class="fw-bold" style="font-size: .95rem;">{{ item.team.name }}</span>
+                </div>
+              </div>
+              <div class="text-end">
+                <span class="fw-bold text-primary" style="font-size: 1.2rem; font-family: 'Outfit', sans-serif;">{{ item.goals }}</span>
+                <div class="text-muted" style="font-size: .65rem; text-transform: uppercase; font-weight: 700;">Goles</div>
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="text-center py-4 text-muted small">
+              No hay datos de goles registrados aún.
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Mini Ranking -->
+      <div class="card-custom">
+        <div class="card-header-custom d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-trophy me-2"></i>Ranking Actual</span>
+          {% if event.can_view_others_predictions %}
+          <a href="{{ url_for('public.ranking', event_id=event.id) }}" style="color: var(--gold); font-size: .8rem; text-decoration: none;">
+            Ver completo →
+          </a>
+          {% endif %}
+        </div>
+        <div class="card-body-custom p-0">
+          {% if top_participants %}
+            {% for p in top_participants %}
+            <div class="d-flex align-items-center px-3 py-3 gap-3 {% if p.id == participant.id %}bg-warning-subtle{% endif %}"
+                 style="border-bottom: 1px solid var(--border);">
+              <div class="rank-number {% if loop.index == 1 %}pos-1{% elif loop.index == 2 %}pos-2{% elif loop.index == 3 %}pos-3{% endif %}">
+                {{ loop.index }}
+              </div>
+              <div style="flex: 1;">
+                <span style="font-weight: 600; font-size: .95rem; display: block;">{{ p.name }}</span>
+                {% if p.id == participant.id %}
+                  <span class="badge bg-warning text-dark border-0" style="font-size: 0.65rem;">TÚ</span>
+                {% endif %}
+              </div>
+              <div class="text-end">
+                <strong style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; display: block;">
+                  {{ p.total_points }}
+                </strong>
+                <small class="text-muted" style="font-size: 0.7rem;">PUNTOS</small>
+              </div>
+            </div>
+            {% endfor %}
+            
+            {% if event.can_view_others_predictions %}
+            <div class="text-center py-3">
+              <a href="{{ url_for('public.ranking', event_id=event.id) }}" class="text-muted small text-decoration-none fw-bold">
+                VER TODOS LOS PARTICIPANTES <i class="bi bi-arrow-right ms-1"></i>
+              </a>
+            </div>
+            {% endif %}
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <div style="font-size: 2.5rem;">⏳</div>
+              <p class="mt-2 mb-0 small">Esperando las primeras predicciones...</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends 'admin_base.html' %}
+{% block title %}Puntuación — {{ event.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="btn-outline-custom">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h1 style="font-size: 1.8rem; margin: 0;">⚙️ Sistema de Puntuación</h1>
+</div>
+
+<div class="card-custom" style="max-width: 700px;">
+  <div class="card-header-custom"><i class="bi bi-sliders me-2"></i>Configuración de Puntos</div>
+  <div class="card-body-custom">
+    <div class="alert alert-info d-flex gap-2 align-items-start" style="border-radius: var(--radius-sm);">
+      <i class="bi bi-info-circle-fill mt-1"></i>
+      <div>
+        <strong>Importante:</strong> Al guardar los cambios, el sistema <strong>recalcula automáticamente</strong>
+        todos los puntos de los participantes usando la nueva configuración.
+      </div>
+    </div>
+
+    <form method="POST">
+      {% for cfg in configs %}
+      <div class="card-custom mb-3" style="border: 2px solid {% if cfg.is_active %}var(--green-soft){% else %}var(--border){% endif %};">
+        <div class="card-body-custom">
+          <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div class="flex-grow-1">
+              <h6 style="font-weight: 700; font-size: 1rem; margin-bottom: .25rem;">
+                {% if cfg.score_type == 'exact_score' %}🎯 Marcador Exacto
+                {% elif cfg.score_type == 'correct_winner' %}✅ Ganador/Empate Correcto
+                {% elif cfg.score_type == 'group_position' %}📊 Posición en Grupo
+                {% else %}{{ cfg.score_type }}
+                {% endif %}
+              </h6>
+              <p class="text-muted mb-2" style="font-size: .85rem;">{{ cfg.description }}</p>
+              <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div>
+                  <label class="form-label-custom">Puntos</label>
+                  <div class="d-flex align-items-center gap-2">
+                    <input type="number" name="points_{{ cfg.score_type }}"
+                           class="form-control-custom" style="width: 80px;"
+                           value="{{ cfg.points_value }}" min="0" max="100">
+                    <span class="text-muted small">pts</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="text-center">
+              <label class="form-label-custom d-block">Activo</label>
+              <div class="form-check form-switch" style="padding-left: 2.5rem;">
+                <input class="form-check-input" type="checkbox" role="switch"
+                       name="active_{{ cfg.score_type }}"
+                       id="active_{{ cfg.score_type }}"
+                       {% if cfg.is_active %}checked{% endif %}
+                       style="width: 3rem; height: 1.5rem; cursor: pointer;">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+
+      <div class="d-flex gap-2 mt-4">
+        <button type="submit" class="btn-primary-custom">
+          <i class="bi bi-check-circle me-1"></i>Guardar y Recalcular
+        </button>
+        <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="btn-outline-custom">
+          Cancelar
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

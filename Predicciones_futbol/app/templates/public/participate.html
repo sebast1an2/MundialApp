@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Participar — {{ event.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+
+      <div class="text-center mb-4 fade-in-up">
+        <span style="font-size: 3rem;">{{ event.logo_emoji }}</span>
+        <h1 style="font-size: 1.7rem; margin: .5rem 0 .25rem;">{{ event.name }}</h1>
+        <p class="text-muted">Ingresa tus datos para participar</p>
+      </div>
+
+      {% if not open_phase %}
+      <!-- No open phase -->
+      <div class="card-custom text-center fade-in-up">
+        <div class="card-body-custom py-5">
+          <div style="font-size: 3rem;">🔒</div>
+          <h3 class="mt-3">Predicciones cerradas</h3>
+          <p class="text-muted">No hay ninguna fase de predicción abierta en este momento.</p>
+          <a href="{{ url_for('public.event_detail', event_id=event.id) }}" class="btn-dark-custom mt-2">
+            <i class="bi bi-arrow-left me-1"></i>Volver al evento
+          </a>
+        </div>
+      </div>
+
+      {% elif step == 'cedula' %}
+      <!-- Step 1: Enter cedula -->
+      <div class="card-custom fade-in-up">
+        <div class="card-header-custom">
+          <i class="bi bi-person-badge me-2"></i>Fase activa: {{ open_phase.name }}
+        </div>
+        <div class="card-body-custom">
+          <div class="alert alert-info" style="border-radius: var(--radius-sm); font-size: .9rem;">
+            <i class="bi bi-info-circle me-2"></i>
+            Ingresa tu número de cédula. Si ya participaste, podrás ver el estado de tus predicciones.
+          </div>
+          <form method="POST">
+            <input type="hidden" name="step" value="cedula">
+            <div class="mb-4">
+              <label class="form-label-custom">Número de Cédula / Identificación *</label>
+              <input type="text" name="cedula" class="form-control-custom" required autofocus
+                     placeholder="12345678" style="font-size: 1.2rem; text-align: center; letter-spacing: 2px;">
+            </div>
+            <button type="submit" class="btn-primary-custom w-100 justify-content-center py-3">
+              <i class="bi bi-arrow-right-circle me-2"></i>Continuar
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {% elif step == 'name' %}
+      <!-- Step 2: Enter name (new user) -->
+      <div class="card-custom fade-in-up">
+        <div class="card-header-custom">
+          <i class="bi bi-person-plus me-2"></i>Primer acceso — {{ open_phase.name }}
+        </div>
+        <div class="card-body-custom">
+          <div class="alert alert-success" style="border-radius: var(--radius-sm); font-size: .9rem;">
+            <i class="bi bi-check-circle me-2"></i>
+            ¡Cédula válida! Ingresa tu nombre para registrarte.
+          </div>
+          <form method="POST">
+            <input type="hidden" name="step" value="name">
+            <input type="hidden" name="cedula" value="{{ cedula }}">
+            <div class="mb-3">
+              <label class="form-label-custom">Cédula</label>
+              <input type="text" class="form-control-custom" value="{{ cedula }}" disabled
+                     style="background: var(--bg);">
+            </div>
+            <div class="mb-4">
+              <label class="form-label-custom">Tu nombre completo *</label>
+              <input type="text" name="name" class="form-control-custom" required autofocus
+                     placeholder="Juan García...">
+            </div>
+            <button type="submit" class="btn-primary-custom w-100 justify-content-center py-3">
+              <i class="bi bi-pencil-fill me-2"></i>Ir a mis predicciones
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="text-center mt-3">
+        <a href="{{ url_for('public.event_detail', event_id=event.id) }}"
+           class="text-muted small text-decoration-none">
+          <i class="bi bi-arrow-left me-1"></i>Volver al evento
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

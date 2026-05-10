@@ -1,0 +1,108 @@
+{% extends 'admin_base.html' %}
+{% block title %}Fases — {{ event.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="text-muted small">
+      <i class="bi bi-arrow-left me-1"></i>{{ event.name }}
+    </a>
+    <h1 style="font-size: 1.8rem; margin: .25rem 0 0;">🎯 Fases del Torneo</h1>
+  </div>
+</div>
+
+<!-- New phase form -->
+<div class="card-custom mb-4">
+  <div class="card-header-custom"><i class="bi bi-plus-circle me-2"></i>Nueva Fase</div>
+  <div class="card-body-custom">
+    <form method="POST" action="{{ url_for('admin.phases_new', event_id=event.id) }}"
+          class="row g-3 align-items-end">
+      <div class="col-12 col-md-5">
+        <label class="form-label-custom">Nombre de la fase *</label>
+        <select name="name" class="form-control-custom" required>
+          <option value="">— Seleccionar Fase —</option>
+          <option value="Fase de grupos">Fase de grupos</option>
+          <option value="Dieciseisavos">Dieciseisavos</option>
+          <option value="Octavos">Octavos</option>
+          <option value="Cuartos">Cuartos</option>
+          <option value="Semifinal">Semifinal</option>
+          <option value="Tercero y cuarto">Tercero y cuarto</option>
+          <option value="Final">Final</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label-custom">Orden</label>
+        <input type="number" name="phase_order" class="form-control-custom"
+               value="{{ (phases|length) + 1 }}" min="1">
+      </div>
+      <div class="col-6 col-md-4">
+        <button type="submit" class="btn-primary-custom w-100 justify-content-center">
+          <i class="bi bi-plus-lg me-1"></i>Crear Fase
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Phases list -->
+{% if phases %}
+<div class="d-flex flex-column gap-3">
+  {% for phase in phases %}
+  <div class="card-custom">
+    <div class="card-body-custom">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div class="d-flex align-items-center gap-3">
+          <div style="width:40px;height:40px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-family:'Outfit',sans-serif;">
+            {{ phase.phase_order }}
+          </div>
+          <div>
+            <h5 style="margin:0;font-size:1.1rem;">{{ phase.name }}</h5>
+            <div class="d-flex gap-2 align-items-center mt-1">
+              {% if phase.is_prediction_open %}
+                <span class="phase-open-badge">✅ Predicciones ABIERTAS</span>
+              {% else %}
+                <span class="phase-close-badge">🔒 Predicciones CERRADAS</span>
+              {% endif %}
+              {% set match_count = phase.matches.count() %}
+              <small class="text-muted">{{ match_count }} partido(s)</small>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2 flex-wrap">
+          <!-- Toggle open/close -->
+          <form method="POST" action="{{ url_for('admin.phases_toggle', phase_id=phase.id) }}">
+            {% if phase.is_prediction_open %}
+              <button type="submit" class="btn btn-sm btn-warning fw-bold">
+                <i class="bi bi-lock me-1"></i>Cerrar Predicciones
+              </button>
+            {% else %}
+              <button type="submit" class="btn btn-sm btn-success fw-bold">
+                <i class="bi bi-unlock me-1"></i>Abrir Predicciones
+              </button>
+            {% endif %}
+          </form>
+
+          <a href="{{ url_for('admin.phases_edit', phase_id=phase.id) }}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-pencil"></i>
+          </a>
+
+          <form method="POST" action="{{ url_for('admin.phases_delete', phase_id=phase.id) }}" class="d-inline"
+                onsubmit="return confirmAction('¿Seguro que deseas eliminar esta fase? Se eliminarán también sus partidos y predicciones.', event);">
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+  <div class="text-center py-5 text-muted">
+    <div style="font-size: 3rem;">🎯</div>
+    <p class="mt-2">No hay fases creadas. Crea la primera fase del torneo.</p>
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block title %}Ranking — {{ event.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+      <a href="{{ url_for('public.event_detail', event_id=event.id) }}" class="text-muted small text-decoration-none">
+        <i class="bi bi-arrow-left me-1"></i>{{ event.name }}
+      </a>
+      <h1 style="font-size: 1.8rem; margin: .25rem 0 0;">🏆 Ranking General</h1>
+    </div>
+    <span style="color: var(--text-muted); font-size: .9rem;">{{ participants|length }} participante(s)</span>
+  </div>
+
+  {% if participants %}
+    <!-- Podium -->
+    {% if participants|length >= 1 %}
+    <div class="podium mb-5">
+      {% if participants|length >= 2 %}
+      <div class="podium-item fade-in-up fade-in-up-delay-1">
+        <div class="podium-card pos-2">
+          <span class="podium-medal">🥈</span>
+          <div class="podium-name">{{ participants[1].name }}</div>
+          <div class="podium-pts">{{ participants[1].total_points }} pts</div>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="podium-item fade-in-up">
+        <div class="podium-card pos-1">
+          <span class="podium-medal" style="font-size: 3rem;">🥇</span>
+          <div class="podium-name" style="font-size: 1.1rem;">{{ participants[0].name }}</div>
+          <div class="podium-pts" style="font-size: 1.8rem;">{{ participants[0].total_points }} pts</div>
+        </div>
+      </div>
+
+      {% if participants|length >= 3 %}
+      <div class="podium-item fade-in-up fade-in-up-delay-2">
+        <div class="podium-card pos-3">
+          <span class="podium-medal">🥉</span>
+          <div class="podium-name">{{ participants[2].name }}</div>
+          <div class="podium-pts">{{ participants[2].total_points }} pts</div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Full table -->
+    <div class="card-custom">
+      <div class="card-header-custom"><i class="bi bi-list-ol me-2"></i>Tabla Completa</div>
+      <div class="card-body-custom p-0">
+        <div class="table-responsive">
+          <table class="table-custom">
+            <thead>
+              <tr>
+                <th style="width: 60px;">Pos.</th>
+                <th>Participante</th>
+                <th style="text-align: right;">Puntos</th>
+                <th style="text-align: right; width: 120px;">Mis predicciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in participants %}
+              <tr class="fade-in-up {% if p.id == current_participant_id %}bg-warning-subtle fw-bold{% endif %}" 
+                  style="{% if loop.index <= 3 and p.id != current_participant_id %}background: rgba(255,214,10,.04);{% endif %}">
+                <td>
+                  <div class="rank-number {% if loop.index == 1 %}pos-1{% elif loop.index == 2 %}pos-2{% elif loop.index == 3 %}pos-3{% endif %}">
+                    {{ loop.index }}
+                  </div>
+                </td>
+                <td>
+                  <strong style="font-size: .95rem;">{{ p.name }}</strong>
+                </td>
+                <td style="text-align: right;">
+                  <strong style="font-family: 'Outfit', sans-serif; font-size: 1.2rem; color: var(--primary);">
+                    {{ p.total_points }}
+                  </strong>
+                  <small class="text-muted">pts</small>
+                </td>
+                <td style="text-align: right;">
+                  <a href="{{ url_for('public.my_predictions', event_id=event.id, cedula=p.cedula) }}"
+                     class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-eye"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="text-center mt-4">
+      <a href="{{ url_for('public.participate', event_id=event.id) }}" class="btn-primary-custom">
+        <i class="bi bi-pencil-fill me-1"></i>Hacer mis predicciones
+      </a>
+    </div>
+  {% else %}
+    <div class="text-center py-5 text-muted">
+      <div style="font-size: 4rem;">🏆</div>
+      <h3 class="mt-3">El ranking está vacío</h3>
+      <p>Sé el primero en participar.</p>
+      <a href="{{ url_for('public.participate', event_id=event.id) }}" class="btn-primary-custom mt-2">
+        <i class="bi bi-pencil-fill me-1"></i>Participar ahora
+      </a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

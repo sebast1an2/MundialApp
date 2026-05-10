@@ -1,0 +1,185 @@
+{% extends 'admin_base.html' %}
+{% block title %}Grupos — {{ event.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="text-muted small">
+      <i class="bi bi-arrow-left me-1"></i>{{ event.name }}
+    </a>
+    <h1 style="font-size: 1.8rem; margin: .25rem 0 0;">🗂️ Grupos</h1>
+  </div>
+  <!-- New group form -->
+  <form method="POST" action="{{ url_for('admin.groups_new', event_id=event.id) }}" class="d-flex gap-2">
+    <input type="text" name="name" class="form-control-custom" style="width: 80px;"
+           placeholder="A" maxlength="5" required>
+    <button type="submit" class="btn-primary-custom">
+      <i class="bi bi-plus-lg me-1"></i>Añadir Grupo
+    </button>
+  </form>
+</div>
+
+{% if groups_with_teams %}
+<div class="row g-3">
+  {% for item in groups_with_teams %}
+  {% set group = item.group %}
+  {% set teams_in = item.teams %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card-custom" style="overflow: visible;">
+      <div class="group-header d-flex justify-content-between align-items-center">
+        <span>Grupo {{ group.name }}</span>
+        <div class="d-flex gap-1">
+          <form method="POST" action="{{ url_for('admin.groups_generate_matches', group_id=group.id) }}" class="d-inline m-0"
+                onsubmit="return confirmAction('¿Generar automáticamente partidos Todos-contra-Todos para el Grupo {{ group.name }}?', event);">
+            <button type="submit" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.9);border:none;font-size:.75rem;font-weight:600;"
+                    title="Generar Partidos (Round Robin)">
+              <i class="bi bi-calendar-plus me-1"></i>Partidos
+            </button>
+          </form>
+          
+          <form method="POST" action="{{ url_for('admin.groups_delete', group_id=group.id) }}" class="d-inline m-0"
+                onsubmit="return confirmAction('¿Eliminar el Grupo {{ group.name }}?', event);">
+            <button type="submit" class="btn btn-sm ms-1" style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:none;"
+                    title="Eliminar Grupo">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="card-body-custom">
+        <form method="POST" action="{{ url_for('admin.group_teams_update', group_id=group.id) }}" id="form-group-{{ group.id }}">
+          
+          <div class="mb-3">
+            <label class="form-label-custom">Equipos Asignados</label>
+            <div class="assigned-teams-container d-flex flex-wrap gap-2 p-2 rounded" style="background: var(--bg); min-height: 48px;" id="container-{{ group.id }}">
+              {% set assigned_ids = teams_in|map(attribute='id')|list %}
+              {% for team in teams_in %}
+                <div class="badge bg-white text-dark border d-flex align-items-center p-2 team-badge shadow-sm" data-team-id="{{ team.id }}">
+                  <span class="me-2" style="font-size: 1.1rem;">{{ team.flag_emoji }}</span>
+                  <span class="me-2 fw-medium">{{ team.name }}</span>
+                  <button type="button" class="btn-close" style="font-size: .6rem;" onclick="removeTeam({{ group.id }}, {{ team.id }})"></button>
+                  <input type="hidden" name="team_ids" value="{{ team.id }}">
+                </div>
+              {% endfor %}
+              {% if not teams_in %}
+                <span class="text-muted small empty-msg w-100 text-center py-1">Sin equipos asignados.</span>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="dropdown mb-3">
+            <button class="btn form-control-custom w-100 text-start dropdown-toggle d-flex justify-content-between align-items-center" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" style="background: #fff;">
+              <span class="text-muted"><i class="bi bi-search me-2"></i>Buscar y añadir equipo...</span>
+            </button>
+            <div class="dropdown-menu w-100 p-2 shadow border-0" style="border-radius: var(--radius-sm);">
+              <input type="text" class="form-control form-control-sm mb-2 group-team-search" placeholder="Escribe para filtrar..." onkeyup="filterTeams(this, {{ group.id }})">
+              <div class="list-group list-group-flush" style="max-height: 220px; overflow-y: auto;" id="list-{{ group.id }}">
+                {% for team in all_filtered_teams %}
+                  {% set is_assigned = team.id in assigned_ids %}
+                  <button type="button" class="list-group-item list-group-item-action d-flex align-items-center py-2 px-2 team-option {% if is_assigned %}d-none{% endif %}" 
+                          data-team-id="{{ team.id }}" 
+                          data-team-name="{{ team.name | lower }}" 
+                          data-team-flag="{{ team.flag_emoji }}"
+                          data-team-realname="{{ team.name }}"
+                          onclick="addTeam({{ group.id }}, {{ team.id }})">
+                    <span class="me-2" style="font-size: 1.2rem;">{{ team.flag_emoji }}</span>
+                    <span class="fw-medium">{{ team.name }}</span>
+                    <i class="bi bi-plus-circle-fill ms-auto" style="color: var(--primary);"></i>
+                  </button>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-dark-custom w-100 justify-content-center mt-2">
+            <i class="bi bi-check-lg me-1"></i>Guardar Grupo
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+  <div class="text-center py-5 text-muted">
+    <div style="font-size: 3rem;">🗂️</div>
+    <p class="mt-2">No hay grupos creados. Añade el primer grupo usando el campo de arriba.</p>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+function addTeam(groupId, teamId) {
+  const listEl = document.getElementById(`list-${groupId}`);
+  const optionBtn = listEl.querySelector(`.team-option[data-team-id="${teamId}"]`);
+  if (!optionBtn) return;
+  
+  const teamName = optionBtn.dataset.teamRealname;
+  const teamFlag = optionBtn.dataset.teamFlag;
+  
+  // Hide from dropdown
+  optionBtn.classList.add('d-none');
+  
+  // Add to container
+  const container = document.getElementById(`container-${groupId}`);
+  const emptyMsg = container.querySelector('.empty-msg');
+  if (emptyMsg) emptyMsg.remove();
+  
+  const badge = document.createElement('div');
+  badge.className = 'badge bg-white text-dark border d-flex align-items-center p-2 team-badge shadow-sm fade-in-up';
+  badge.dataset.teamId = teamId;
+  badge.innerHTML = `
+    <span class="me-2" style="font-size: 1.1rem;">${teamFlag}</span>
+    <span class="me-2 fw-medium">${teamName}</span>
+    <button type="button" class="btn-close" style="font-size: .6rem;" onclick="removeTeam(${groupId}, ${teamId})"></button>
+    <input type="hidden" name="team_ids" value="${teamId}">
+  `;
+  container.appendChild(badge);
+}
+
+function removeTeam(groupId, teamId) {
+  const container = document.getElementById(`container-${groupId}`);
+  const badge = container.querySelector(`.team-badge[data-team-id="${teamId}"]`);
+  if (badge) badge.remove();
+  
+  // Show in dropdown
+  const listEl = document.getElementById(`list-${groupId}`);
+  const optionBtn = listEl.querySelector(`.team-option[data-team-id="${teamId}"]`);
+  if (optionBtn) {
+    const searchInput = optionBtn.closest('.dropdown-menu').querySelector('.group-team-search');
+    const q = searchInput.value.toLowerCase();
+    if (optionBtn.dataset.teamName.includes(q)) {
+      optionBtn.classList.remove('d-none');
+    }
+  }
+  
+  if (container.querySelectorAll('.team-badge').length === 0) {
+    container.innerHTML = '<span class="text-muted small empty-msg w-100 text-center py-1">Sin equipos asignados.</span>';
+  }
+}
+
+function filterTeams(inputEl, groupId) {
+  const q = inputEl.value.toLowerCase();
+  const listEl = document.getElementById(`list-${groupId}`);
+  const options = listEl.querySelectorAll('.team-option');
+  const container = document.getElementById(`container-${groupId}`);
+  
+  options.forEach(opt => {
+    const teamId = opt.dataset.teamId;
+    const isAssigned = container.querySelector(`.team-badge[data-team-id="${teamId}"]`) !== null;
+    
+    if (isAssigned) {
+      opt.classList.add('d-none');
+    } else {
+      if (opt.dataset.teamName.includes(q)) {
+        opt.classList.remove('d-none');
+      } else {
+        opt.classList.add('d-none');
+      }
+    }
+  });
+}
+</script>
+{% endblock %}

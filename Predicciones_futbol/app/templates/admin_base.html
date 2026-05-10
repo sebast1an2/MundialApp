@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="admin-wrapper">
+
+  <!-- ── Sidebar ────────────────────────────────────────── -->
+  <nav class="admin-sidebar" id="admin-sidebar">
+    <div class="px-3 mb-2">
+      <small style="color: rgba(255,255,255,.4); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+        Panel de Control
+      </small>
+    </div>
+
+    <a href="{{ url_for('admin.dashboard') }}" class="nav-link">
+      <i class="bi bi-speedometer2"></i> Dashboard
+    </a>
+
+    <div class="sidebar-section">Catálogo</div>
+    <a href="{{ url_for('admin.teams') }}" class="nav-link">
+      <i class="bi bi-shield-fill"></i> Equipos
+    </a>
+
+    <div class="sidebar-section">Torneos</div>
+    <a href="{{ url_for('admin.events') }}" class="nav-link">
+      <i class="bi bi-trophy-fill"></i> Eventos
+    </a>
+
+    {% if event is defined and event %}
+      <div class="sidebar-section" style="color: var(--gold); opacity: 1;">
+        {{ event.logo_emoji }} {{ event.name[:20] }}{% if event.name|length > 20 %}…{% endif %}
+      </div>
+      <a href="{{ url_for('admin.event_detail',   event_id=event.id) }}" class="nav-link">
+        <i class="bi bi-grid-1x2"></i> Resumen
+      </a>
+      <a href="{{ url_for('admin.groups',         event_id=event.id) }}" class="nav-link">
+        <i class="bi bi-collection"></i> Grupos
+      </a>
+      <a href="{{ url_for('admin.phases',         event_id=event.id) }}" class="nav-link">
+        <i class="bi bi-layers"></i> Fases
+      </a>
+      <a href="{{ url_for('admin.matches',        event_id=event.id) }}" class="nav-link">
+        <i class="bi bi-calendar3"></i> Partidos
+      </a>
+      <a href="{{ url_for('admin.results',        event_id=event.id) }}" class="nav-link">
+        <i class="bi bi-pencil-square"></i> Resultados
+      </a>
+      <a href="{{ url_for('admin.scoring_config', event_id=event.id) }}" class="nav-link">
+        <i class="bi bi-sliders"></i> Puntuación
+      </a>
+      <a href="{{ url_for('admin.participants',   event_id=event.id) }}" class="nav-link">
+        <i class="bi bi-people-fill"></i> Participantes
+      </a>
+      <a href="{{ url_for('admin.ranking',        event_id=event.id) }}" class="nav-link">
+        <i class="bi bi-bar-chart-line-fill"></i> Ranking
+      </a>
+    {% endif %}
+
+    <div class="sidebar-section">Cuenta</div>
+    <a href="{{ url_for('auth.logout') }}" class="nav-link" style="color: rgba(255,100,100,.7);">
+      <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
+    </a>
+  </nav>
+
+  <!-- ── Main Content ──────────────────────────────────── -->
+  <main class="admin-content">
+    {% block admin_content %}{% endblock %}
+  </main>
+
+</div>
+
+<!-- Mobile sidebar toggle -->
+<button class="sidebar-toggle" id="sidebar-toggle">
+  <i class="bi bi-list"></i>
+</button>
+
+<!-- Custom Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg" style="border-radius: var(--radius);">
+      <div class="modal-header bg-primary text-white border-0" style="border-radius: var(--radius) var(--radius) 0 0;">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill me-2 text-warning"></i> Confirmación</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4" id="confirmModalBody">
+        ¿Estás seguro de realizar esta acción?
+      </div>
+      <div class="modal-footer border-0 p-3">
+        <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal" style="border-radius: var(--radius-sm);">Cancelar</button>
+        <button type="button" class="btn btn-danger px-4" id="confirmBtn" style="border-radius: var(--radius-sm); font-weight: 600;">Confirmar Eliminación</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Global confirmation helper using Bootstrap Modal
+  let formToSubmit = null;
+  let confirmModal = null;
+  let confirmBtn = null;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const modalEl = document.getElementById('confirmModal');
+    if (modalEl) {
+      confirmModal = new bootstrap.Modal(modalEl);
+      confirmBtn = document.getElementById('confirmBtn');
+
+      confirmBtn.addEventListener('click', () => {
+        if (formToSubmit) {
+          formToSubmit.onsubmit = null;
+          formToSubmit.submit();
+        }
+        confirmModal.hide();
+      });
+    }
+  });
+
+  window.confirmAction = function(msg, event) {
+    if (event) event.preventDefault();
+    formToSubmit = event ? event.target : null;
+    
+    const bodyEl = document.getElementById('confirmModalBody');
+    if (bodyEl) bodyEl.innerHTML = msg.replace(/\n/g, '<br>');
+    
+    const cBtn = document.getElementById('confirmBtn');
+    if (cBtn) {
+      if (msg.toLowerCase().includes('eliminar')) {
+        cBtn.className = 'btn btn-danger px-4';
+        cBtn.innerText = 'Confirmar Eliminación';
+      } else {
+        cBtn.className = 'btn btn-primary px-4';
+        cBtn.innerText = 'Confirmar Acción';
+      }
+    }
+    
+    if (confirmModal) confirmModal.show();
+    return false;
+  };
+</script>
+{% endblock %}
+
+{% block extra_js %}
+  {{ super() }}
+{% endblock %}

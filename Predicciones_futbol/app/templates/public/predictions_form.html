@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Predicciones — {{ phase.name }} — {{ event.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <!-- Header -->
+  <div class="text-center mb-4 fade-in-up">
+    <span style="font-size: 2.5rem;">{{ event.logo_emoji }}</span>
+    <h1 style="font-size: 1.6rem; margin: .5rem 0 .1rem;">{{ event.name }}</h1>
+    <p class="text-muted">{{ phase.name }} &mdash; Predicciones de <strong>{{ participant.name }}</strong></p>
+    <div class="alert alert-warning d-inline-flex align-items-center gap-2"
+         style="border-radius: 50px; font-size: .85rem; padding: .4rem 1.25rem;">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      Una vez guardadas, <strong>no podrás modificar</strong> tus predicciones.
+    </div>
+  </div>
+
+  <form method="POST" action="{{ url_for('public.save_predictions', event_id=event.id) }}"
+        id="predictions-form">
+    <input type="hidden" name="cedula" value="{{ participant.cedula }}">
+    <input type="hidden" name="phase_id" value="{{ phase.id }}">
+
+    <!-- Group matches by date or label -->
+    {% set dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'] %}
+    {% set meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'] %}
+    {% set ns = namespace(current_date='') %}
+    {% for match in matches %}
+      {% if match.match_date %}
+        {% set d_idx = match.match_date.weekday() %}
+        {% set m_idx = match.match_date.month - 1 %}
+        {% set match_date_str = dias[d_idx] ~ ' ' ~ match.match_date.day ~ ' de ' ~ meses[m_idx] %}
+      {% else %}
+        {% set match_date_str = '' %}
+      {% endif %}
+      
+      {% if match_date_str and match_date_str != ns.current_date %}
+        {% set ns.current_date = match_date_str %}
+        <h5 class="section-title mt-4">📅 {{ match_date_str }}</h5>
+      {% elif not match.match_date and loop.first %}
+        <h5 class="section-title mt-4">📅 Todos los partidos</h5>
+      {% endif %}
+
+      <div class="match-card fade-in-up">
+        <!-- Label -->
+        {% if match.match_label %}
+          <div class="text-center mb-2">
+            <small style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);">
+              {{ match.match_label }}
+            </small>
+          </div>
+        {% endif %}
+        {% if match.group %}
+          <div class="text-center mb-2">
+            <span class="badge" style="background:rgba(13,27,42,.08);color:var(--primary);font-size:.72rem;">
+              Grupo {{ match.group.name }}
+            </span>
+          </div>
+        {% endif %}
+
+        <!-- Teams + Score inputs -->
+        <div class="match-teams">
+          <div class="team-block">
+            <span class="team-flag">{{ match.home_team.flag_emoji }}</span>
+            <span class="team-name">{{ match.home_team.name }}</span>
+          </div>
+
+          <div class="d-flex flex-column align-items-center gap-2">
+            <div class="score-inputs">
+              <input type="number" name="home_{{ match.id }}" class="score-input"
+                     min="0" max="99" placeholder="0" required
+                     id="home_{{ match.id }}"
+                     oninput="this.value = this.value < 0 ? 0 : this.value">
+              <span class="score-separator">:</span>
+              <input type="number" name="away_{{ match.id }}" class="score-input"
+                     min="0" max="99" placeholder="0" required
+                     id="away_{{ match.id }}"
+                     oninput="this.value = this.value < 0 ? 0 : this.value">
+            </div>
+            <small class="text-muted" style="font-size: .72rem;">Tu predicción</small>
+          </div>
+
+          <div class="team-block">
+            <span class="team-flag">{{ match.away_team.flag_emoji }}</span>
+            <span class="team-name">{{ match.away_team.name }}</span>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+
+    <!-- Submit -->
+    <div class="text-center mt-4 mb-5 fade-in-up">
+      <p class="text-muted small mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        Revisá bien tus predicciones antes de guardar. No podrás cambiarlas después.
+      </p>
+      <button type="submit" class="btn-primary-custom" style="font-size: 1.1rem; padding: .85rem 3rem;">
+        <i class="bi bi-check-circle-fill me-2"></i>Guardar mis {{ matches|length }} predicciones
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

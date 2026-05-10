@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}Iniciar Sesión — Admin{% endblock %}
+
+{% block content %}
+<div class="min-vh-100 d-flex align-items-center justify-content-center"
+     style="background: linear-gradient(135deg, var(--primary) 0%, #1e3a5f 100%);">
+  <div class="card-custom fade-in-up" style="width: 100%; max-width: 420px; margin: 2rem;">
+    <div class="text-center p-4 pb-0">
+      <div style="font-size: 3.5rem;">🔐</div>
+      <h1 style="font-size: 1.6rem;" class="mt-2">Panel Administrador</h1>
+      <p style="color: var(--text-muted); font-size: .9rem;">Ingresa tus credenciales para continuar</p>
+    </div>
+    <div class="card-body-custom">
+      {% if error %}
+        <div class="alert alert-danger d-flex align-items-center gap-2 py-2" style="border-radius: var(--radius-sm);">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <small>{{ error }}</small>
+        </div>
+      {% endif %}
+
+      <form method="POST" action="{{ url_for('auth.login') }}">
+        <div class="mb-3">
+          <label class="form-label-custom">Usuario</label>
+          <input type="text" name="username" class="form-control-custom"
+                 placeholder="admin" autocomplete="username" required>
+        </div>
+        <div class="mb-4">
+          <label class="form-label-custom">Contraseña</label>
+          <input type="password" name="password" class="form-control-custom"
+                 placeholder="••••••••" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="btn-primary-custom w-100 justify-content-center py-3">
+          <i class="bi bi-arrow-right-circle me-2"></i>Ingresar
+        </button>
+      </form>
+
+      <div class="text-center mt-3">
+        <a href="{{ url_for('public.home') }}" class="text-muted" style="font-size: .85rem;">
+          <i class="bi bi-arrow-left me-1"></i>Volver al inicio
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

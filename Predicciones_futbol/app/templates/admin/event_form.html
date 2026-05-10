@@ -1,0 +1,75 @@
+{% extends 'admin_base.html' %}
+{% block title %}{% if event %}Editar{% else %}Nuevo{% endif %} Evento — Admin{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('admin.events') }}" class="btn-outline-custom">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h1 style="font-size: 1.8rem; margin: 0;">
+    {% if event %}✏️ Editar Evento{% else %}➕ Nuevo Evento{% endif %}
+  </h1>
+</div>
+
+<div class="card-custom" style="max-width: 650px;">
+  <div class="card-header-custom">Datos del Evento</div>
+  <div class="card-body-custom">
+    <form method="POST">
+      <div class="mb-3">
+        <label class="form-label-custom">Nombre del evento *</label>
+        <input type="text" name="name" class="form-control-custom"
+               value="{{ event.name if event else '' }}" required
+               placeholder="Mundial FIFA 2026, Champions League 2025/26...">
+      </div>
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="form-label-custom">Tipo de torneo</label>
+          <select name="tournament_type" class="form-control-custom">
+            <option value="world_cup" {% if event and event.tournament_type == 'world_cup' %}selected{% endif %}>🌍 Copa del Mundo</option>
+            <option value="champions" {% if event and event.tournament_type == 'champions' %}selected{% endif %}>⭐ Champions League</option>
+            <option value="copa_america" {% if event and event.tournament_type == 'copa_america' %}selected{% endif %}>🏆 Copa América</option>
+            <option value="custom" {% if event and event.tournament_type == 'custom' %}selected{% endif %}>⚙️ Personalizado</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label class="form-label-custom">Emoji del torneo</label>
+          <input type="text" name="logo_emoji" class="form-control-custom"
+                 value="{{ event.logo_emoji if event else '🏆' }}" placeholder="🏆">
+        </div>
+      </div>
+      {% if event %}
+      <div class="mb-3">
+        <label class="form-label-custom">Estado</label>
+        <select name="status" class="form-control-custom">
+          <option value="draft"    {% if event.status == 'draft' %}selected{% endif %}>📋 Borrador</option>
+          <option value="active"   {% if event.status == 'active' %}selected{% endif %}>✅ Activo</option>
+          <option value="finished" {% if event.status == 'finished' %}selected{% endif %}>🏁 Finalizado</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" name="can_view_others_predictions" 
+                 id="can_view_others_predictions" {% if event.can_view_others_predictions %}checked{% endif %}>
+          <label class="form-check-label" for="can_view_others_predictions">
+            Permitir que participantes vean predicciones de otros usuarios
+          </label>
+        </div>
+      </div>
+      {% endif %}
+      <div class="mb-4">
+        <label class="form-label-custom">Descripción</label>
+        <textarea name="description" class="form-control-custom" rows="3"
+                  placeholder="Descripción del evento...">{{ event.description if event else '' }}</textarea>
+      </div>
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn-primary-custom">
+          <i class="bi bi-check-lg me-1"></i>
+          {% if event %}Guardar Cambios{% else %}Crear Evento{% endif %}
+        </button>
+        <a href="{{ url_for('admin.events') }}" class="btn-outline-custom">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

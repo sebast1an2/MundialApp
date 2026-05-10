@@ -1,0 +1,106 @@
+{% extends 'admin_base.html' %}
+{% block title %}Equipos — Admin{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <h1 style="font-size: 1.8rem; margin: 0;">🛡️ Catálogo de Equipos</h1>
+  <div class="d-flex gap-2">
+    <form method="POST" action="{{ url_for('admin.teams_seed') }}" onsubmit="return confirmAction('¿Cargar equipos predeterminados? Solo se añadirán los que no existan.', event);">
+      <button type="submit" class="btn-outline-custom">
+        <i class="bi bi-download me-1"></i> Carga Inicial
+      </button>
+    </form>
+    <a href="{{ url_for('admin.teams_new') }}" class="btn-primary-custom">
+      <i class="bi bi-plus-lg me-1"></i> Nuevo Equipo
+    </a>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card-custom mb-4">
+  <div class="card-body-custom">
+    <form method="GET" class="row g-2 align-items-center">
+      <div class="col-12 col-md-6">
+        <input type="text" name="q" value="{{ q }}" class="form-control-custom"
+               placeholder="🔍 Buscar equipo...">
+      </div>
+      <div class="col-12 col-md-4">
+        <select name="type" class="form-control-custom">
+          <option value="all" {% if filter_type == 'all' %}selected{% endif %}>Todos los tipos</option>
+          <option value="national" {% if filter_type == 'national' %}selected{% endif %}>🌍 Selecciones Nacionales</option>
+          <option value="club" {% if filter_type == 'club' %}selected{% endif %}>🏟️ Clubes</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-2">
+        <button type="submit" class="btn-dark-custom w-100 justify-content-center">
+          Filtrar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Teams table -->
+<div class="card-custom">
+  <div class="card-header-custom d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-list-ul me-2"></i>{{ teams|length }} equipo(s) encontrado(s)</span>
+  </div>
+  <div class="card-body-custom p-0">
+    {% if teams %}
+    <div class="table-responsive">
+      <table class="table-custom">
+        <thead>
+          <tr>
+            <th>Bandera</th>
+            <th>Nombre</th>
+            <th>Código</th>
+            <th>Tipo</th>
+            <th>País</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for team in teams %}
+          <tr class="fade-in-up">
+            <td style="font-size: 1.5rem; text-align: center;">{{ team.flag_emoji }}</td>
+            <td><strong>{{ team.name }}</strong></td>
+            <td><code>{{ team.short_name or '—' }}</code></td>
+            <td>
+              {% if team.team_type == 'national' %}
+                <span class="badge" style="background: rgba(45,106,79,.15); color: var(--green-field);">🌍 Selección</span>
+              {% else %}
+                <span class="badge" style="background: rgba(13,27,42,.1); color: var(--primary);">🏟️ Club</span>
+              {% endif %}
+            </td>
+            <td><small class="text-muted">{{ team.country_code or '—' }}</small></td>
+            <td>
+              <div class="d-flex gap-1">
+                <a href="{{ url_for('admin.teams_edit', team_id=team.id) }}"
+                   class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                <form method="POST" action="{{ url_for('admin.teams_delete', team_id=team.id) }}" class="d-inline"
+                      onsubmit="return confirmAction('¿Eliminar el equipo {{ team.name }}? Esta acción no se puede deshacer.', event);">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="text-center py-5 text-muted">
+        <div style="font-size: 3rem;">🔍</div>
+        <p class="mt-2">No se encontraron equipos.</p>
+        <button class="btn-primary-custom" onclick="document.querySelector('form[action*=seed]').submit()">
+          <i class="bi bi-download me-1"></i> Cargar equipos predeterminados
+        </button>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends 'admin_base.html' %}
+{% block title %}Participantes — {{ event.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="text-muted small">
+      <i class="bi bi-arrow-left me-1"></i>{{ event.name }}
+    </a>
+    <h1 style="font-size: 1.8rem; margin: .25rem 0 0;">👥 Participantes</h1>
+  </div>
+  <span class="kpi-value" style="font-size: 1.8rem;">{{ participants|length }}</span>
+</div>
+
+<div class="card-custom">
+  <div class="card-header-custom"><i class="bi bi-people me-2"></i>Lista de Participantes</div>
+  <div class="card-body-custom p-0">
+    {% if participants %}
+    <div class="table-responsive">
+      <table class="table-custom">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Nombre</th>
+            <th>Cédula</th>
+            <th>Puntos</th>
+            <th>Registro</th>
+            <th>Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in participants %}
+          <tr class="fade-in-up">
+            <td>
+              <div class="rank-number {% if loop.index == 1 %}pos-1{% elif loop.index == 2 %}pos-2{% elif loop.index == 3 %}pos-3{% endif %}">
+                {{ loop.index }}
+              </div>
+            </td>
+            <td><strong>{{ p.name }}</strong></td>
+            <td><code>{{ p.cedula }}</code></td>
+            <td>
+              <strong style="font-size: 1.1rem; font-family: 'Outfit', sans-serif; color: var(--primary);">
+                {{ p.total_points }}
+              </strong>
+              <small class="text-muted">pts</small>
+            </td>
+            <td><small class="text-muted">{{ p.created_at.strftime('%d/%m/%Y') }}</small></td>
+            <td>
+              <a href="{{ url_for('admin.participant_detail', participant_id=p.id) }}"
+                 class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-eye me-1"></i>Ver
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="text-center py-5 text-muted">
+        <div style="font-size: 3rem;">👥</div>
+        <p class="mt-2">Aún no hay participantes en este evento.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

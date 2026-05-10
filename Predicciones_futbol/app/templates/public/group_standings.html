@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block title %}Tabla de Grupos — {{ event.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+      <a href="{{ url_for('public.event_detail', event_id=event.id) }}" class="text-muted small text-decoration-none">
+        <i class="bi bi-arrow-left me-1"></i>{{ event.name }}
+      </a>
+      <h1 style="font-size: 1.8rem; margin: .25rem 0 0;">📊 Tabla de Grupos</h1>
+    </div>
+    <small class="text-muted">Calculada en tiempo real</small>
+  </div>
+
+  {% if standings_by_group %}
+    <div class="row g-4">
+      {% for group, standings in standings_by_group.items() %}
+      <div class="col-12 col-lg-6">
+        <div class="card-custom">
+          <div class="group-header">
+            Grupo {{ group.name }}
+          </div>
+          <div class="table-responsive">
+            <table class="table-custom">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Equipo</th>
+                  <th style="text-align:center;" title="Partidos Jugados">PJ</th>
+                  <th style="text-align:center;" title="Ganados">PG</th>
+                  <th style="text-align:center;" title="Empatados">PE</th>
+                  <th style="text-align:center;" title="Perdidos">PP</th>
+                  <th style="text-align:center;" title="Goles a favor">GF</th>
+                  <th style="text-align:center;" title="Goles en contra">GC</th>
+                  <th style="text-align:center;" title="Diferencia">DIF</th>
+                  <th style="text-align:center;" title="Puntos"><strong>PTS</strong></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in standings %}
+                <tr class="{% if loop.index <= 2 %}standings-row-q{% else %}standings-row-out{% endif %}">
+                  <td>
+                    <span style="font-weight: 700; color: {% if loop.index <= 2 %}var(--green-field){% else %}var(--text-muted){% endif %};">
+                      {{ loop.index }}
+                    </span>
+                  </td>
+                  <td>
+                    <span style="font-size: 1.1rem;">{{ row.team.flag_emoji }}</span>
+                    <strong class="ms-1" style="font-size: .9rem;">{{ row.team.short_name or row.team.name[:6] }}</strong>
+                    <span class="d-none d-md-inline text-muted ms-1" style="font-size: .8rem;">{{ row.team.name }}</span>
+                  </td>
+                  <td style="text-align:center;">{{ row.pj }}</td>
+                  <td style="text-align:center; color: var(--green-field);">{{ row.pg }}</td>
+                  <td style="text-align:center;">{{ row.pe }}</td>
+                  <td style="text-align:center; color: var(--accent);">{{ row.pp }}</td>
+                  <td style="text-align:center;">{{ row.gf }}</td>
+                  <td style="text-align:center;">{{ row.gc }}</td>
+                  <td style="text-align:center; font-weight: 600;
+                      {% if row.dif > 0 %}color: var(--green-field);{% elif row.dif < 0 %}color: var(--accent);{% endif %}">
+                    {% if row.dif > 0 %}+{% endif %}{{ row.dif }}
+                  </td>
+                  <td style="text-align:center;">
+                    <strong style="font-family: 'Outfit', sans-serif; font-size: 1rem;
+                        {% if loop.index <= 2 %}color: var(--primary);{% endif %}">
+                      {{ row.pts }}
+                    </strong>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% if standings|length >= 2 %}
+          <div class="px-3 py-2" style="background: rgba(45,106,79,.05); border-top: 1px solid var(--border);">
+            <small style="font-size: .72rem; color: var(--green-field);">
+              <span style="background: var(--green-field); border-radius: 2px; width: 10px; height: 10px; display: inline-block; margin-right: 4px;"></span>
+              Clasifican a la siguiente ronda (1° y 2°)
+            </small>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center py-5 text-muted">
+      <div style="font-size: 3rem;">📊</div>
+      <h3 class="mt-3">Sin grupos configurados</h3>
+      <p>El administrador aún no ha definido los grupos del torneo.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

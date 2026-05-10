@@ -1,0 +1,77 @@
+{% extends 'admin_base.html' %}
+{% block title %}Detalle Participante — Admin{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('admin.participants', event_id=event.id) }}" class="btn-outline-custom">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h1 style="font-size: 1.8rem; margin: 0;">{{ participant.name }}</h1>
+    <small class="text-muted">Cédula: {{ participant.cedula }} &bull; {{ event.name }}</small>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="kpi-card">
+      <div class="kpi-icon gold">⭐</div>
+      <div><div class="kpi-value">{{ participant.total_points }}</div><div class="kpi-label">Puntos totales</div></div>
+    </div>
+  </div>
+</div>
+
+{% for pd in phase_data %}
+<div class="card-custom mb-4">
+  <div class="card-header-custom d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-layers me-2"></i>{{ pd.phase.name }}</span>
+    <span style="font-size: .9rem;">{{ pd.predictions|length }} predicciones</span>
+  </div>
+  <div class="card-body-custom p-0">
+    <div class="table-responsive">
+      <table class="table-custom">
+        <thead>
+          <tr><th>Partido</th><th>Predicción</th><th>Resultado real</th><th>Puntos</th></tr>
+        </thead>
+        <tbody>
+          {% for item in pd.predictions %}
+          {% set pred = item.prediction %}
+          {% set match = item.match %}
+          <tr>
+            <td>
+              {{ match.home_team.flag_emoji }} {{ match.home_team.short_name }}
+              <span class="text-muted mx-1">vs</span>
+              {{ match.away_team.short_name }} {{ match.away_team.flag_emoji }}
+            </td>
+            <td style="font-family:'Outfit',sans-serif;font-weight:700;">
+              {{ pred.home_pred }} – {{ pred.away_pred }}
+            </td>
+            <td>
+              {% if match.is_finished %}
+                <strong style="font-family:'Outfit',sans-serif;">{{ match.home_score }} – {{ match.away_score }}</strong>
+              {% else %}
+                <span class="text-muted">Pendiente</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if item.points is not none %}
+                {% if item.score_type == 'exact_score' %}
+                  <span class="badge-exact">+{{ item.points }} 🎯</span>
+                {% elif item.score_type == 'correct_winner' %}
+                  <span class="badge-winner">+{{ item.points }} ✅</span>
+                {% else %}
+                  <span class="badge-none">0</span>
+                {% endif %}
+              {% else %}
+                <span class="badge-pending">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

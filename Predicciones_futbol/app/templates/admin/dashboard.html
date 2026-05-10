@@ -1,0 +1,166 @@
+{% extends 'admin_base.html' %}
+{% block title %}Dashboard — Admin{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h1 style="font-size: 1.8rem; margin: 0;">🏠 Dashboard</h1>
+  <span style="color: var(--text-muted); font-size: .9rem;">Panel de Administración</span>
+</div>
+
+<!-- KPIs -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3 fade-in-up">
+    <div class="kpi-card">
+      <div class="kpi-icon blue">🏆</div>
+      <div>
+        <div class="kpi-value">{{ total_events }}</div>
+        <div class="kpi-label">Eventos</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 fade-in-up fade-in-up-delay-1">
+    <div class="kpi-card">
+      <div class="kpi-icon green">🛡️</div>
+      <div>
+        <div class="kpi-value">{{ total_teams }}</div>
+        <div class="kpi-label">Equipos</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 fade-in-up fade-in-up-delay-2">
+    <div class="kpi-card">
+      <div class="kpi-icon red">👥</div>
+      <div>
+        <div class="kpi-value">{{ total_participants }}</div>
+        <div class="kpi-label">Participantes</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3 fade-in-up fade-in-up-delay-3">
+    <div class="kpi-card">
+      <div class="kpi-icon gold">⚡</div>
+      <div>
+        <div class="kpi-value">{{ total_predictions }}</div>
+        <div class="kpi-label">Predicciones</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Eventos activos -->
+  <div class="col-lg-7">
+    <div class="card-custom">
+      <div class="card-header-custom d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-trophy-fill me-2"></i>Eventos Activos</span>
+        <a href="{{ url_for('admin.events_new') }}" class="btn btn-sm" style="background: rgba(255,255,255,.15); color: #fff; border: none; border-radius: 6px;">
+          <i class="bi bi-plus-lg"></i> Nuevo
+        </a>
+      </div>
+      <div class="card-body-custom p-0">
+        {% if active_events %}
+          <div class="table-responsive">
+            <table class="table-custom">
+              <thead>
+                <tr>
+                  <th>Evento</th>
+                  <th>Tipo</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for ev in active_events %}
+                <tr>
+                  <td>
+                    <span style="font-size: 1.3rem;">{{ ev.logo_emoji }}</span>
+                    <strong class="ms-2">{{ ev.name }}</strong>
+                  </td>
+                  <td><small class="text-muted">{{ ev.tournament_type }}</small></td>
+                  <td>
+                    <a href="{{ url_for('admin.event_detail', event_id=ev.id) }}"
+                       class="btn btn-sm btn-outline-secondary">
+                      <i class="bi bi-arrow-right"></i> Gestionar
+                    </a>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <div style="font-size: 2rem;">📋</div>
+            <p class="mt-2 mb-0">No hay eventos activos.</p>
+            <a href="{{ url_for('admin.events_new') }}" class="btn-primary-custom mt-3" style="display: inline-flex;">
+              <i class="bi bi-plus-lg me-1"></i> Crear primer evento
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Últimos resultados -->
+  <div class="col-lg-5">
+    <div class="card-custom">
+      <div class="card-header-custom">
+        <i class="bi bi-lightning-fill me-2"></i>Últimos Resultados
+      </div>
+      <div class="card-body-custom p-0">
+        {% if recent_results %}
+          {% for match in recent_results %}
+          <div class="d-flex align-items-center justify-content-between px-3 py-2"
+               style="border-bottom: 1px solid var(--border);">
+            <div style="font-size: .82rem; flex: 1; text-align: right;">
+              {{ match.home_team.flag_emoji }} {{ match.home_team.short_name }}
+            </div>
+            <div class="mx-2 px-2 py-1 rounded" style="background: var(--primary); color: #fff; font-family: 'Outfit', sans-serif; font-weight: 800; font-size: .9rem;">
+              {{ match.home_score }}–{{ match.away_score }}
+            </div>
+            <div style="font-size: .82rem; flex: 1;">
+              {{ match.away_team.short_name }} {{ match.away_team.flag_emoji }}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <div style="font-size: 2rem;">⏳</div>
+            <p class="mt-2 mb-0 small">Aún no hay resultados cargados.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick links -->
+<div class="row g-3 mt-2">
+  <div class="col-12">
+    <h5 class="section-title">Acciones Rápidas</h5>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{{ url_for('admin.teams') }}" class="btn-dark-custom w-100 justify-content-center py-3 flex-column gap-1">
+      <i class="bi bi-shield-fill" style="font-size: 1.4rem;"></i>
+      <span>Equipos</span>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{{ url_for('admin.events') }}" class="btn-dark-custom w-100 justify-content-center py-3 flex-column gap-1">
+      <i class="bi bi-trophy-fill" style="font-size: 1.4rem;"></i>
+      <span>Eventos</span>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{{ url_for('admin.events_new') }}" class="btn-primary-custom w-100 justify-content-center py-3 flex-column gap-1">
+      <i class="bi bi-plus-circle-fill" style="font-size: 1.4rem;"></i>
+      <span>Nuevo Evento</span>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="{{ url_for('public.home') }}" target="_blank" class="btn-outline-custom w-100 justify-content-center py-3 flex-column gap-1">
+      <i class="bi bi-eye-fill" style="font-size: 1.4rem;"></i>
+      <span>Ver Sitio</span>
+    </a>
+  </div>
+</div>
+{% endblock %}

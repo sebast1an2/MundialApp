@@ -1,0 +1,147 @@
+{% extends 'admin_base.html' %}
+{% block title %}Cargar Resultados — {{ event.name }}{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="text-muted small">
+      <i class="bi bi-arrow-left me-1"></i>{{ event.name }}
+    </a>
+    <h1 style="font-size: 1.8rem; margin: .25rem 0 0;">✏️ Cargar Resultados</h1>
+  </div>
+</div>
+
+<!-- Phase filter -->
+<div class="card-custom mb-4">
+  <div class="card-body-custom">
+    <label class="form-label-custom">Seleccionar Fase</label>
+    <select id="phase-filter-select" class="form-control-custom" style="max-width: 300px;">
+      {% for phase in phases %}
+        <option value="{{ phase.id }}" {% if selected_phase and phase.id == selected_phase.id %}selected{% endif %}>
+          {{ phase.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+{% if selected_phase %}
+  {% if matches %}
+    <div class="row g-3">
+      {% for match in matches %}
+      <div class="col-12 col-lg-6">
+        <div class="match-card">
+          <!-- Match label -->
+          {% if match.match_label %}
+            <div class="text-center mb-2">
+              <small class="text-muted" style="font-size: .75rem; text-transform: uppercase; letter-spacing: 1px;">
+                {{ match.match_label }}
+              </small>
+            </div>
+          {% endif %}
+          {% if match.match_date %}
+            <div class="text-center mb-2">
+              <small class="text-muted">📅 {{ match.match_date.strftime('%d/%m/%Y %H:%M') }}</small>
+            </div>
+          {% endif %}
+
+          <!-- Teams vs Score form -->
+          <form method="POST" action="{{ url_for('admin.matches_result', match_id=match.id) }}">
+            <div class="match-teams align-items-center">
+              <!-- Home team -->
+              <div class="team-block">
+                <span class="team-flag">{{ match.home_team.flag_emoji }}</span>
+                <span class="team-name">{{ match.home_team.name }}</span>
+              </div>
+
+              <!-- Score inputs -->
+              <div class="d-flex flex-column align-items-center gap-2">
+                <div class="score-inputs">
+                  <input type="number" name="home_score" class="score-input"
+                         value="{{ match.home_score if match.home_score is not none else '' }}"
+                         min="0" max="99" placeholder="—">
+                  <span class="score-separator">:</span>
+                  <input type="number" name="away_score" class="score-input"
+                         value="{{ match.away_score if match.away_score is not none else '' }}"
+                         min="0" max="99" placeholder="—">
+                </div>
+                {% if selected_phase.phase_order > 1 %}
+                <div class="mt-2 w-100 penalty-section" style="display: {% if match.home_score == match.away_score and match.home_score is not none %}block{% else %}none{% endif %};">
+                  <label class="form-label-custom mb-1 text-center d-block" style="font-size: .7rem; letter-spacing: 0.5px; text-transform: uppercase; color: var(--gold);">🏆 Ganador Penales</label>
+                  <select name="penalty_winner_id" class="form-control-custom form-control-sm text-center" style="font-size: .8rem; background: rgba(255,255,255,.05);">
+                    <option value="">— Elegir Ganador —</option>
+                    <option value="{{ match.home_team_id }}" {% if match.penalty_winner_id == match.home_team_id %}selected{% endif %}>{{ match.home_team.name }}</option>
+                    <option value="{{ match.away_team_id }}" {% if match.penalty_winner_id == match.away_team_id %}selected{% endif %}>{{ match.away_team.name }}</option>
+                  </select>
+                </div>
+                {% endif %}
+                {% if match.is_finished %}
+                  <span class="badge bg-success">✅ Finalizado</span>
+                {% else %}
+                  <span class="badge bg-secondary">Pendiente</span>
+                {% endif %}
+              </div>
+
+              <!-- Away team -->
+              <div class="team-block">
+                <span class="team-flag">{{ match.away_team.flag_emoji }}</span>
+                <span class="team-name">{{ match.away_team.name }}</span>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-flex gap-2 justify-content-center mt-3">
+              <button type="submit" class="btn-primary-custom">
+                <i class="bi bi-check-circle me-1"></i>Guardar Resultado
+              </button>
+              {% if match.is_finished %}
+              <button type="submit" name="clear_result" value="1" class="btn-outline-custom"
+                      data-confirm="¿Borrar el resultado de este partido? Se recalcularán los puntos.">
+                <i class="bi bi-x-circle me-1"></i>Borrar
+              </button>
+              {% endif %}
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="text-center py-5 text-muted">
+      <div style="font-size: 3rem;">📅</div>
+      <p class="mt-2">No hay partidos en esta fase.
+        <a href="{{ url_for('admin.matches', event_id=event.id, phase_id=selected_phase.id) }}">Crear partidos →</a>
+      </p>
+    </div>
+  {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Toggle penalty section on score change
+  document.querySelectorAll('.match-card').forEach(card => {
+    const inputs = card.querySelectorAll('.score-input');
+    const penaltySection = card.querySelector('.penalty-section');
+    
+    if (penaltySection) {
+      const updatePenalty = () => {
+        const h = inputs[0].value;
+        const a = inputs[1].value;
+        if (h !== '' && a !== '' && h === a) {
+          penaltySection.style.display = 'block';
+        } else {
+          penaltySection.style.display = 'none';
+          const sel = penaltySection.querySelector('select');
+          if (sel) sel.value = '';
+        }
+      };
+      
+      inputs.forEach(input => input.addEventListener('input', updatePenalty));
+    }
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Validación — {{ event.name }}{% endblock %}
+
+{% block content %}
+<section class="py-5 bg-light min-vh-100 d-flex align-items-center">
+  <div class="container">
+    <div class="row justify-content-center">
+      <div class="col-md-5">
+        <div class="card-custom shadow-lg">
+          <div class="card-header-custom text-center py-4">
+            <span style="font-size: 3rem; display: block; margin-bottom: 1rem;">{{ event.logo_emoji }}</span>
+            <h2 class="h4 mb-0">{{ event.name }}</h2>
+            <p class="text-white-50 mb-0 mt-2" style="font-size: 0.9rem;">Acceso para participantes</p>
+          </div>
+          <div class="card-body-custom p-4">
+            
+            {% if step == 'cedula' %}
+              <form method="POST">
+                <div class="mb-4">
+                  <label class="form-label-custom">Ingresa tu número de cédula</label>
+                  <div class="input-group">
+                    <span class="input-group-text bg-transparent border-end-0 text-muted">
+                      <i class="bi bi-person-badge"></i>
+                    </span>
+                    <input type="text" name="cedula" class="form-control-custom border-start-0" 
+                           placeholder="Ej: 12345678" required autofocus>
+                  </div>
+                  <div class="form-text mt-2">Usaremos tu cédula para identificar tu participación.</div>
+                </div>
+                <button type="submit" class="btn-primary-custom w-100 py-3">
+                  Continuar <i class="bi bi-arrow-right ms-2"></i>
+                </button>
+              </form>
+
+            {% elif step == 'name' %}
+              <div class="alert alert-info border-0 mb-4" style="background: rgba(13, 110, 253, 0.1); color: var(--primary);">
+                <i class="bi bi-info-circle-fill me-2"></i>
+                Parece que es tu primera vez en este evento. Por favor, regístrate.
+              </div>
+              <form method="POST">
+                <input type="hidden" name="cedula" value="{{ cedula }}">
+                <div class="mb-3">
+                  <label class="form-label-custom">Cédula</label>
+                  <input type="text" class="form-control-custom bg-light" value="{{ cedula }}" disabled>
+                </div>
+                <div class="mb-4">
+                  <label class="form-label-custom">Nombre Completo</label>
+                  <div class="input-group">
+                    <span class="input-group-text bg-transparent border-end-0 text-muted">
+                      <i class="bi bi-person"></i>
+                    </span>
+                    <input type="text" name="name" class="form-control-custom border-start-0" 
+                           placeholder="Ej: Juan Pérez" required autofocus>
+                  </div>
+                </div>
+                <button type="submit" class="btn-primary-custom w-100 py-3">
+                  Registrarme y Entrar <i class="bi bi-check-lg ms-2"></i>
+                </button>
+              </form>
+
+            {% elif step == 'closed' %}
+              <div class="text-center py-4">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">🔒</div>
+                <h3 class="h5 fw-bold text-danger">Predicciones Cerradas</h3>
+                <p class="text-muted">
+                  Lo sentimos, las predicciones para esta fase ya están cerradas y no detectamos una participación previa con esa cédula.
+                </p>
+                <a href="{{ url_for('public.home') }}" class="btn-outline-custom mt-3">
+                  <i class="bi bi-house me-2"></i> Volver al Inicio
+                </a>
+              </div>
+            {% endif %}
+
+            <div class="text-center mt-4 pt-3 border-top">
+              <a href="{{ url_for('public.home') }}" class="text-muted text-decoration-none" style="font-size: 0.85rem;">
+                <i class="bi bi-arrow-left me-1"></i> Volver a la lista de eventos
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
