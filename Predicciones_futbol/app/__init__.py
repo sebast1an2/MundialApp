@@ -1,6 +1,8 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from config import Config
+import os
+from whitenoise import WhiteNoise
 
 db = SQLAlchemy()
 
@@ -21,5 +23,8 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+
+    # Configurar WhiteNoise para servir archivos estáticos de forma eficiente en producción
+    app.wsgi_app = WhiteNoise(app.wsgi_app, root=os.path.join(app.root_path, 'static'), prefix='static/')
 
     return app
