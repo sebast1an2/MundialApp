@@ -257,7 +257,9 @@ def groups_new(event_id):
 @require_admin
 def group_teams_update(group_id):
     group = Group.query.get_or_404(group_id)
-    team_ids = request.form.getlist('team_ids')
+    # getlist() devuelve strings; PostgreSQL requiere integers en .in_()
+    # (psycopg.errors.UndefinedFunction: operator does not exist: integer = character varying)
+    team_ids = [int(tid) for tid in request.form.getlist('team_ids') if tid.isdigit()]
     
     # Check if any team is already in ANOTHER group in this event
     other_groups = Group.query.filter(Group.event_id == group.event_id, Group.id != group_id).all()
