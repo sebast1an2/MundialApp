@@ -1,4 +1,4 @@
-from Predicciones_futbol.app import create_app
+from app import create_app
 
 app = create_app()
 
