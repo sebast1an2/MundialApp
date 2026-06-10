@@ -58,7 +58,7 @@
                 <th style="width: 60px;">Pos.</th>
                 <th>Participante</th>
                 <th style="text-align: right;">Puntos</th>
-                <th style="text-align: right; width: 120px;">Mis predicciones</th>
+                <th style="text-align: right; width: 160px;">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -80,10 +80,18 @@
                   <small class="text-muted">pts</small>
                 </td>
                 <td style="text-align: right;">
-                  <a href="{{ url_for('public.my_predictions', event_id=event.id, cedula=p.cedula) }}"
-                     class="btn btn-sm btn-outline-secondary">
-                    <i class="bi bi-eye"></i>
-                  </a>
+                  <div class="d-flex align-items-center justify-content-end gap-1">
+                    <a href="{{ url_for('public.my_predictions', event_id=event.id, cedula=p.cedula) }}"
+                       class="btn btn-sm btn-outline-secondary" title="Ver predicciones">
+                      <i class="bi bi-eye"></i>
+                    </a>
+                    {% if current_participant_id and p.id != current_participant_id %}
+                    <a href="{{ url_for('public.compare_predictions', event_id=event.id, other_cedula=p.cedula) }}"
+                       class="btn btn-sm btn-compare" title="Comparar con {{ p.name }}">
+                      <i class="bi bi-bar-chart-steps me-1"></i>Comparar
+                    </a>
+                    {% endif %}
+                  </div>
                 </td>
               </tr>
               {% endfor %}

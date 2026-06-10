@@ -297,6 +297,9 @@ def my_predictions(event_id, cedula):
             'phase_points': phase_points,
         })
 
+    # Most recent phase first
+    phase_data.reverse()
+
     # Ranking position
     ranked = (Participant.query.filter_by(event_id=event_id)
               .order_by(Participant.total_points.desc(), Participant.created_at)
@@ -320,16 +323,84 @@ def ranking(event_id):
     if not event.can_view_others_predictions:
         flash('La visualización del ranking de otros participantes está desactivada.', 'info')
         return redirect(url_for('public.event_detail', event_id=event_id))
-    
+
     current_participant_id = session.get(f'participant_event_{event_id}')
-        
+
     all_participants = (Participant.query.filter_by(event_id=event_id)
                         .order_by(Participant.total_points.desc(), Participant.created_at)
                         .all())
     return render_template('public/ranking.html',
-                           event=event, 
+                           event=event,
                            participants=all_participants,
                            current_participant_id=current_participant_id)
+
+
+# ─── COMPARE PREDICTIONS ──────────────────────────────────────────────────────
+
+@public_bp.route('/evento/<int:event_id>/comparar/<other_cedula>')
+def compare_predictions(event_id, other_cedula):
+    event = Event.query.get_or_404(event_id)
+
+    # Gate: feature only available when others' predictions are visible
+    if not event.can_view_others_predictions:
+        flash('La comparación de predicciones no está disponible en este evento.', 'warning')
+        return redirect(url_for('public.event_detail', event_id=event_id))
+
+    # Require the logged-in participant
+    my_id = session.get(f'participant_event_{event_id}')
+    if not my_id:
+        return redirect(url_for('public.validate_participant', event_id=event_id))
+
+    me = Participant.query.get_or_404(my_id)
+    other = Participant.query.filter_by(cedula=other_cedula, event_id=event_id).first_or_404()
+
+    # Can't compare with yourself
+    if me.id == other.id:
+        return redirect(url_for('public.my_predictions', event_id=event_id, cedula=me.cedula))
+
+    # Build comparison data: one entry per phase, each containing per-match rows
+    phases = Phase.query.filter_by(event_id=event_id).order_by(Phase.phase_order.desc()).all()
+
+    comparison_data = []
+    for phase in phases:
+        matches = (Match.query.filter_by(phase_id=phase.id)
+                   .order_by(Match.match_date, Match.id).all())
+        if not matches:
+            continue
+
+        # Index predictions by match_id for both participants
+        def pred_map(participant_id):
+            preds = Prediction.query.filter_by(
+                participant_id=participant_id, phase_id=phase.id).all()
+            return {p.match_id: p for p in preds}
+
+        my_preds    = pred_map(me.id)
+        other_preds = pred_map(other.id)
+
+        # Only include phases where at least one participant has predicted
+        if not my_preds and not other_preds:
+            continue
+
+        rows = []
+        for match in matches:
+            my_p    = my_preds.get(match.id)
+            other_p = other_preds.get(match.id)
+            if not my_p and not other_p:
+                continue
+            rows.append({
+                'match':   match,
+                'my_pred':    my_p,
+                'other_pred': other_p,
+            })
+
+        if rows:
+            comparison_data.append({'phase': phase, 'rows': rows})
+
+    return render_template('public/compare.html',
+                           event=event,
+                           me=me,
+                           other=other,
+                           comparison_data=comparison_data)
 
 
 # ─── GROUP STANDINGS ──────────────────────────────────────────────────────────

@@ -9,13 +9,109 @@
     </a>
     <h1 style="font-size: 1.8rem; margin: .25rem 0 0;">👥 Participantes</h1>
   </div>
-  <span class="kpi-value" style="font-size: 1.8rem;">{{ participants|length }}</span>
 </div>
 
+{# ── Financial Summary KPI Cards ──────────────────────────────── #}
+{% set paid_count     = participants | selectattr('payment_confirmed') | list | length %}
+{% set pending_count  = participants | length - paid_count %}
+{% set fee            = event.participation_fee or 0 %}
+{% set total_raised   = paid_count * fee %}
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card">
+      <div class="kpi-icon blue"><i class="bi bi-people-fill" style="color: var(--primary);"></i></div>
+      <div>
+        <div class="kpi-value">{{ participants | length }}</div>
+        <div class="kpi-label">Total inscritos</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card">
+      <div class="kpi-icon green"><i class="bi bi-check-circle-fill" style="color: var(--green-soft);"></i></div>
+      <div>
+        <div class="kpi-value" style="color: var(--green-field);">{{ paid_count }}</div>
+        <div class="kpi-label">Pagos confirmados</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card">
+      <div class="kpi-icon red"><i class="bi bi-clock-fill" style="color: var(--accent);"></i></div>
+      <div>
+        <div class="kpi-value" style="color: var(--accent);">{{ pending_count }}</div>
+        <div class="kpi-label">Pagos pendientes</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card">
+      <div class="kpi-icon gold"><i class="bi bi-currency-dollar" style="color: #b8860b;"></i></div>
+      <div>
+        <div class="kpi-value" style="color: #b8860b; font-size: 1.5rem;">
+          {% if fee > 0 %}{{ fee | int | format_currency }}{% else %}<span style="font-size:1rem;color:var(--text-muted);">Sin definir</span>{% endif %}
+        </div>
+        <div class="kpi-label">Valor participación</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4 col-xl-4">
+    <div class="kpi-card" style="background: linear-gradient(135deg, var(--green-field), var(--green-soft)); border-color: var(--green-field);">
+      <div class="kpi-icon" style="background: rgba(255,255,255,.2);"><i class="bi bi-cash-coin" style="color:#fff; font-size: 1.6rem;"></i></div>
+      <div>
+        <div class="kpi-value" style="color: #fff; font-size: 1.8rem;">
+          {% if fee > 0 %}{{ total_raised | int | format_currency }}{% else %}<span style="font-size:1rem; opacity:.8;">—</span>{% endif %}
+        </div>
+        <div class="kpi-label" style="color: rgba(255,255,255,.8);">Total recaudado</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Fee config link ──────────────────────────────────────── #}
+{% if fee == 0 %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-4" style="border-radius: var(--radius); border: 1px solid #fbbf24;">
+  <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+  <span>El valor de participación no está configurado.
+    <a href="{{ url_for('admin.events_edit', event_id=event.id) }}" class="fw-bold ms-1">Configurar ahora →</a>
+  </span>
+</div>
+{% endif %}
+
+{# ── Filter bar ───────────────────────────────────────────── #}
+<div class="card-custom mb-3">
+  <div class="card-body-custom py-2 px-3">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <span class="form-label-custom mb-0">Filtrar:</span>
+      <a href="{{ url_for('admin.participants', event_id=event.id) }}"
+         class="btn btn-sm {% if filter == 'all' %}btn-dark{% else %}btn-outline-secondary{% endif %}"
+         style="border-radius: var(--radius-sm); font-weight: 600;">
+        <i class="bi bi-people me-1"></i>Todos ({{ participants | length }})
+      </a>
+      <a href="{{ url_for('admin.participants', event_id=event.id, filter='pending') }}"
+         class="btn btn-sm {% if filter == 'pending' %}btn-danger{% else %}btn-outline-danger{% endif %}"
+         style="border-radius: var(--radius-sm); font-weight: 600;">
+        <i class="bi bi-clock me-1"></i>Pendientes ({{ pending_count }})
+      </a>
+      <a href="{{ url_for('admin.participants', event_id=event.id, filter='paid') }}"
+         class="btn btn-sm {% if filter == 'paid' %}btn-success{% else %}btn-outline-success{% endif %}"
+         style="border-radius: var(--radius-sm); font-weight: 600;">
+        <i class="bi bi-check-circle me-1"></i>Confirmados ({{ paid_count }})
+      </a>
+    </div>
+  </div>
+</div>
+
+{# ── Participants Table ────────────────────────────────────── #}
 <div class="card-custom">
-  <div class="card-header-custom"><i class="bi bi-people me-2"></i>Lista de Participantes</div>
+  <div class="card-header-custom">
+    <i class="bi bi-people me-2"></i>Lista de Participantes
+    {% if filter == 'pending' %}<span class="badge bg-danger ms-2">Solo pendientes</span>{% endif %}
+    {% if filter == 'paid' %}<span class="badge bg-success ms-2">Solo confirmados</span>{% endif %}
+  </div>
   <div class="card-body-custom p-0">
-    {% if participants %}
+    {% if display_participants %}
     <div class="table-responsive">
       <table class="table-custom">
         <thead>
@@ -25,18 +121,26 @@
             <th>Cédula</th>
             <th>Puntos</th>
             <th>Registro</th>
-            <th>Detalle</th>
+            <th style="text-align:center;">Pago confirmado</th>
+            <th style="text-align:center;">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          {% for p in participants %}
-          <tr class="fade-in-up">
+          {% for p in display_participants %}
+          <tr class="fade-in-up {% if not p.payment_confirmed %}payment-pending-row{% endif %}">
             <td>
               <div class="rank-number {% if loop.index == 1 %}pos-1{% elif loop.index == 2 %}pos-2{% elif loop.index == 3 %}pos-3{% endif %}">
                 {{ loop.index }}
               </div>
             </td>
-            <td><strong>{{ p.name }}</strong></td>
+            <td>
+              <strong>{{ p.name }}</strong>
+              {% if not p.payment_confirmed %}
+                <span class="badge-payment-pending ms-1">⏳ Pendiente</span>
+              {% else %}
+                <span class="badge-payment-confirmed ms-1">✅ Pagado</span>
+              {% endif %}
+            </td>
             <td><code>{{ p.cedula }}</code></td>
             <td>
               <strong style="font-size: 1.1rem; font-family: 'Outfit', sans-serif; color: var(--primary);">
@@ -45,11 +149,41 @@
               <small class="text-muted">pts</small>
             </td>
             <td><small class="text-muted">{{ p.created_at.strftime('%d/%m/%Y') }}</small></td>
-            <td>
-              <a href="{{ url_for('admin.participant_detail', participant_id=p.id) }}"
-                 class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-eye me-1"></i>Ver
-              </a>
+            <td style="text-align:center;">
+              <form method="POST"
+                    action="{{ url_for('admin.toggle_payment', participant_id=p.id) }}"
+                    class="d-inline payment-toggle-form">
+                <input type="hidden" name="redirect_filter" value="{{ filter }}">
+                <div class="form-check form-switch d-flex justify-content-center m-0" title="{{ 'Confirmado' if p.payment_confirmed else 'Pendiente' }}">
+                  <input class="form-check-input payment-switch"
+                         type="checkbox"
+                         role="switch"
+                         id="pay_{{ p.id }}"
+                         {% if p.payment_confirmed %}checked{% endif %}
+                         onchange="this.form.submit()"
+                         style="width: 2.4em; height: 1.3em; cursor: pointer;
+                                background-color: {{ '#2d6a4f' if p.payment_confirmed else '#dc3545' }};
+                                border-color: {{ '#2d6a4f' if p.payment_confirmed else '#dc3545' }};">
+                </div>
+              </form>
+            </td>
+            <td style="text-align:center;">
+              <div class="d-flex align-items-center justify-content-center gap-1">
+                <a href="{{ url_for('admin.participant_detail', participant_id=p.id) }}"
+                   class="btn btn-sm btn-outline-secondary">
+                  <i class="bi bi-eye me-1"></i>Ver
+                </a>
+                <form method="POST"
+                      action="{{ url_for('admin.delete_participant', participant_id=p.id) }}"
+                      class="d-inline"
+                      onsubmit="return confirmAction('⚠️ ¿Eliminar a <strong>{{ p.name }}</strong>?\n\nEsta acción es <strong>irreversible</strong> y eliminará:\n• Todas sus predicciones en este evento\n• Sus puntuaciones y pago confirmado\n\nEl resto del evento no se verá afectado.', event)">
+                  <input type="hidden" name="redirect_filter" value="{{ filter }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger"
+                          title="Eliminar participante">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </div>
             </td>
           </tr>
           {% endfor %}
@@ -58,10 +192,31 @@
     </div>
     {% else %}
       <div class="text-center py-5 text-muted">
-        <div style="font-size: 3rem;">👥</div>
-        <p class="mt-2">Aún no hay participantes en este evento.</p>
+        <div style="font-size: 3rem;">
+          {% if filter == 'pending' %}⏳{% elif filter == 'paid' %}✅{% else %}👥{% endif %}
+        </div>
+        <p class="mt-2">
+          {% if filter == 'pending' %}No hay participantes con pagos pendientes.
+          {% elif filter == 'paid' %}No hay participantes con pago confirmado aún.
+          {% else %}Aún no hay participantes en este evento.{% endif %}
+        </p>
       </div>
     {% endif %}
   </div>
 </div>
+
+<style>
+  .payment-pending-row { background: rgba(230, 57, 70, 0.03); }
+  .badge-payment-pending {
+    font-size: .68rem; font-weight: 700;
+    background: #fee2e2; color: #991b1b;
+    padding: .15rem .5rem; border-radius: 50px;
+  }
+  .badge-payment-confirmed {
+    font-size: .68rem; font-weight: 700;
+    background: #d1fae5; color: #065f46;
+    padding: .15rem .5rem; border-radius: 50px;
+  }
+  .payment-switch:checked { background-color: var(--green-field) !important; border-color: var(--green-field) !important; }
+</style>
 {% endblock %}

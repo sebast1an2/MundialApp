@@ -40,6 +40,12 @@ class Event(db.Model):
     logo_emoji = db.Column(db.String(10), default='🏆')
     status = db.Column(db.String(20), default='draft')   # draft | active | finished
     can_view_others_predictions = db.Column(db.Boolean, default=True)
+    participation_fee = db.Column(db.Numeric(12, 2), nullable=True, default=0)  # valor de participación en moneda local
+    # Prize configuration
+    prize_first  = db.Column(db.Numeric(12, 2), nullable=True, default=0)   # Premio 1er lugar
+    prize_second = db.Column(db.Numeric(12, 2), nullable=True, default=0)   # Premio 2do lugar
+    prize_third  = db.Column(db.Numeric(12, 2), nullable=True, default=0)   # Premio 3er lugar
+    nequi_number = db.Column(db.String(20), nullable=True, default='')      # Número Nequi para pagos
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relations
@@ -181,6 +187,7 @@ class Participant(db.Model):
     name = db.Column(db.String(100), nullable=False)
     event_id = db.Column(db.Integer, db.ForeignKey('events.id'), nullable=False)
     total_points = db.Column(db.Integer, default=0)
+    payment_confirmed = db.Column(db.Boolean, default=False)  # pago de participación confirmado por admin
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (db.UniqueConstraint('cedula', 'event_id',

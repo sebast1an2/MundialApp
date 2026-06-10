@@ -116,6 +116,69 @@
         </div>
       </div>
 
+      {# ── Mini Ranking — Mobile ONLY (d-lg-none) — priority after progress ── #}
+      {% if event.can_view_others_predictions %}
+      <div class="card-custom mb-4 d-lg-none">
+        <div class="card-header-custom d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-trophy me-2"></i>Ranking Actual</span>
+          <a href="{{ url_for('public.ranking', event_id=event.id) }}" style="color: var(--gold); font-size: .8rem; text-decoration: none;">
+            Ver completo →
+          </a>
+        </div>
+        <div class="card-body-custom p-0">
+          {% if top_participants %}
+            {% for p in top_participants %}
+            <div class="d-flex align-items-center px-3 py-3 gap-3 {% if p.id == participant.id %}bg-warning-subtle{% endif %}"
+                 style="border-bottom: 1px solid var(--border);">
+              <div class="rank-number {% if loop.index == 1 %}pos-1{% elif loop.index == 2 %}pos-2{% elif loop.index == 3 %}pos-3{% endif %}">
+                {{ loop.index }}
+              </div>
+              <div style="flex: 1;">
+                <span style="font-weight: 600; font-size: .95rem; display: block;">{{ p.name }}</span>
+                {% if p.id == participant.id %}
+                  <span class="badge bg-warning text-dark border-0" style="font-size: 0.65rem;">TÚ</span>
+                {% endif %}
+              </div>
+              <div class="text-end">
+                <strong style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; display: block;">
+                  {{ p.total_points }}
+                </strong>
+                <small class="text-muted" style="font-size: 0.7rem;">PUNTOS</small>
+              </div>
+            </div>
+            {% endfor %}
+            <div class="text-center py-3">
+              <a href="{{ url_for('public.ranking', event_id=event.id) }}" class="text-muted small text-decoration-none fw-bold">
+                VER TODOS <i class="bi bi-arrow-right ms-1"></i>
+              </a>
+            </div>
+          {% else %}
+            <div class="text-center py-4 text-muted">
+              <div style="font-size: 2rem;">⏳</div>
+              <p class="mt-2 mb-0 small">Esperando predicciones...</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      {# ── Navegación — Mobile ONLY (d-lg-none) — priority after ranking ── #}
+      <div class="card-custom mb-4 d-lg-none">
+        <div class="card-header-custom"><i class="bi bi-compass me-2"></i>Navegación</div>
+        <div class="card-body-custom">
+          <div class="d-grid gap-2">
+            <a href="{{ url_for('public.group_standings', event_id=event.id) }}" class="btn-outline-custom w-100 justify-content-start py-3 px-4">
+              <i class="bi bi-table me-3"></i> Tabla de Grupos
+            </a>
+            {% if event.can_view_others_predictions %}
+            <a href="{{ url_for('public.ranking', event_id=event.id) }}" class="btn-outline-custom w-100 justify-content-start py-3 px-4">
+              <i class="bi bi-bar-chart me-3"></i> Ranking Completo
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
       <!-- Tournament Results -->
       <div class="card-custom mb-4">
         <div class="card-header-custom d-flex justify-content-between align-items-center">
@@ -179,8 +242,57 @@
     <!-- Right Column: Navigation & Ranking -->
     <div class="col-lg-5">
       
+      <!-- Mini Ranking -->
+      <div class="card-custom mb-4 d-none d-lg-block">
+        <div class="card-header-custom d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-trophy me-2"></i>Ranking Actual</span>
+          {% if event.can_view_others_predictions %}
+          <a href="{{ url_for('public.ranking', event_id=event.id) }}" style="color: var(--gold); font-size: .8rem; text-decoration: none;">
+            Ver completo →
+          </a>
+          {% endif %}
+        </div>
+        <div class="card-body-custom p-0">
+          {% if top_participants %}
+            {% for p in top_participants %}
+            <div class="d-flex align-items-center px-3 py-3 gap-3 {% if p.id == participant.id %}bg-warning-subtle{% endif %}"
+                 style="border-bottom: 1px solid var(--border);">
+              <div class="rank-number {% if loop.index == 1 %}pos-1{% elif loop.index == 2 %}pos-2{% elif loop.index == 3 %}pos-3{% endif %}">
+                {{ loop.index }}
+              </div>
+              <div style="flex: 1;">
+                <span style="font-weight: 600; font-size: .95rem; display: block;">{{ p.name }}</span>
+                {% if p.id == participant.id %}
+                  <span class="badge bg-warning text-dark border-0" style="font-size: 0.65rem;">TÚ</span>
+                {% endif %}
+              </div>
+              <div class="text-end">
+                <strong style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; display: block;">
+                  {{ p.total_points }}
+                </strong>
+                <small class="text-muted" style="font-size: 0.7rem;">PUNTOS</small>
+              </div>
+            </div>
+            {% endfor %}
+            
+            {% if event.can_view_others_predictions %}
+            <div class="text-center py-3">
+              <a href="{{ url_for('public.ranking', event_id=event.id) }}" class="text-muted small text-decoration-none fw-bold">
+                VER TODOS LOS PARTICIPANTES <i class="bi bi-arrow-right ms-1"></i>
+              </a>
+            </div>
+            {% endif %}
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <div style="font-size: 2.5rem;">⏳</div>
+              <p class="mt-2 mb-0 small">Esperando las primeras predicciones...</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
       <!-- Quick Navigation -->
-      <div class="card-custom mb-4">
+      <div class="card-custom mb-4 d-none d-lg-block">
         <div class="card-header-custom"><i class="bi bi-compass me-2"></i>Navegación</div>
         <div class="card-body-custom">
           <div class="d-grid gap-2">
@@ -230,56 +342,102 @@
         </div>
       </div>
 
-      <!-- Mini Ranking -->
-      <div class="card-custom">
-        <div class="card-header-custom d-flex justify-content-between align-items-center">
-          <span><i class="bi bi-trophy me-2"></i>Ranking Actual</span>
-          {% if event.can_view_others_predictions %}
-          <a href="{{ url_for('public.ranking', event_id=event.id) }}" style="color: var(--gold); font-size: .8rem; text-decoration: none;">
-            Ver completo →
-          </a>
-          {% endif %}
-        </div>
-        <div class="card-body-custom p-0">
-          {% if top_participants %}
-            {% for p in top_participants %}
-            <div class="d-flex align-items-center px-3 py-3 gap-3 {% if p.id == participant.id %}bg-warning-subtle{% endif %}"
-                 style="border-bottom: 1px solid var(--border);">
-              <div class="rank-number {% if loop.index == 1 %}pos-1{% elif loop.index == 2 %}pos-2{% elif loop.index == 3 %}pos-3{% endif %}">
-                {{ loop.index }}
-              </div>
-              <div style="flex: 1;">
-                <span style="font-weight: 600; font-size: .95rem; display: block;">{{ p.name }}</span>
-                {% if p.id == participant.id %}
-                  <span class="badge bg-warning text-dark border-0" style="font-size: 0.65rem;">TÚ</span>
-                {% endif %}
-              </div>
-              <div class="text-end">
-                <strong style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; display: block;">
-                  {{ p.total_points }}
-                </strong>
-                <small class="text-muted" style="font-size: 0.7rem;">PUNTOS</small>
-              </div>
-            </div>
-            {% endfor %}
-            
-            {% if event.can_view_others_predictions %}
-            <div class="text-center py-3">
-              <a href="{{ url_for('public.ranking', event_id=event.id) }}" class="text-muted small text-decoration-none fw-bold">
-                VER TODOS LOS PARTICIPANTES <i class="bi bi-arrow-right ms-1"></i>
-              </a>
-            </div>
-            {% endif %}
-          {% else %}
-            <div class="text-center py-5 text-muted">
-              <div style="font-size: 2.5rem;">⏳</div>
-              <p class="mt-2 mb-0 small">Esperando las primeras predicciones...</p>
-            </div>
-          {% endif %}
-        </div>
-      </div>
+
 
     </div>
   </div>
 </div>
+
+{# ── Floating Action Button: Hacer Predicción ── #}
+{% if open_phase and not has_predicted %}
+<a href="{{ url_for('public.participate', event_id=event.id) }}"
+   id="fab-predict"
+   aria-label="Hacer mi predicción — {{ open_phase.name }}"
+   title="Hacer mi predicción">
+  <span class="fab-inner">
+    <i class="bi bi-play-fill fab-icon"></i>
+    <span class="fab-line1">Hacer</span>
+    <span class="fab-line2">Predicción</span>
+  </span>
+</a>
+
+<style>
+  #fab-predict {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 1050;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent) 0%, #c1121f 100%);
+    color: #fff;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 28px rgba(230, 57, 70, .55);
+    animation: fab-pulse 2.4s ease-in-out infinite;
+    transition: transform .2s ease, box-shadow .2s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #fab-predict:hover,
+  #fab-predict:focus {
+    transform: scale(1.12);
+    box-shadow: 0 10px 40px rgba(230, 57, 70, .7);
+    color: #fff;
+    outline: none;
+    animation-play-state: paused;
+  }
+  #fab-predict:active { transform: scale(.96); }
+
+  .fab-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    pointer-events: none;
+  }
+  .fab-icon {
+    font-size: 1.25rem;
+    line-height: 1;
+    margin-bottom: 1px;
+  }
+  .fab-line1,
+  .fab-line2 {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: .78rem;
+    line-height: 1.15;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+  }
+
+  @keyframes fab-pulse {
+    0%, 100% {
+      transform: scale(1);
+      box-shadow: 0 6px 28px rgba(230, 57, 70, .55);
+    }
+    50% {
+      transform: scale(1.07);
+      box-shadow: 0 10px 42px rgba(230, 57, 70, .75),
+                  0 0 0 10px rgba(230, 57, 70, .12);
+    }
+  }
+
+  /* Mobile: slightly smaller and raised above the Bootstrap toggle */
+  @media (max-width: 768px) {
+    #fab-predict {
+      width: 80px;
+      height: 80px;
+      bottom: 5rem;
+      right: 1.25rem;
+    }
+    .fab-line1, .fab-line2 { font-size: .7rem; }
+    .fab-icon { font-size: 1.1rem; }
+  }
+</style>
+{% endif %}
+
 {% endblock %}

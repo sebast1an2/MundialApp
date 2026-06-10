@@ -56,6 +56,74 @@
           </label>
         </div>
       </div>
+
+      {# ── Premios y Pagos ─────────────────────────────────────── #}
+      <div class="mt-4 mb-2" style="border-top: 2px solid var(--border); padding-top: 1.25rem;">
+        <div class="form-label-custom mb-3" style="font-size:.9rem; color: var(--primary);">🏆 Premios &amp; Pagos — Configuración de la ventana informativa</div>
+
+        <div class="mb-3">
+          <label class="form-label-custom">💰 Valor de participación <small class="text-muted" style="text-transform:none;">(sin decimales)</small></label>
+          <div class="input-group" style="max-width: 260px;">
+            <span class="input-group-text" style="background: var(--bg); border: 2px solid var(--border); border-right: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); color: var(--text-muted); font-weight:600;">$</span>
+            <input type="number" name="participation_fee" min="0" step="1"
+                   class="form-control-custom"
+                   style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0; border-left: none;"
+                   value="{{ (event.participation_fee | int) if event.participation_fee else 0 }}"
+                   placeholder="0">
+          </div>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <label class="form-label-custom">🥇 Premio 1er lugar</label>
+            <div class="input-group">
+              <span class="input-group-text" style="background: var(--bg); border: 2px solid var(--border); border-right: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); color: #b8860b; font-weight:700;">$</span>
+              <input type="number" name="prize_first" min="0" step="1"
+                     class="form-control-custom"
+                     style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0; border-left: none;"
+                     value="{{ (event.prize_first | int) if event.prize_first else 0 }}"
+                     placeholder="0">
+            </div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label-custom">🥈 Premio 2do lugar</label>
+            <div class="input-group">
+              <span class="input-group-text" style="background: var(--bg); border: 2px solid var(--border); border-right: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); color: var(--silver); font-weight:700;">$</span>
+              <input type="number" name="prize_second" min="0" step="1"
+                     class="form-control-custom"
+                     style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0; border-left: none;"
+                     value="{{ (event.prize_second | int) if event.prize_second else 0 }}"
+                     placeholder="0">
+            </div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label-custom">🥉 Premio 3er lugar</label>
+            <div class="input-group">
+              <span class="input-group-text" style="background: var(--bg); border: 2px solid var(--border); border-right: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); color: var(--bronze); font-weight:700;">$</span>
+              <input type="number" name="prize_third" min="0" step="1"
+                     class="form-control-custom"
+                     style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0; border-left: none;"
+                     value="{{ (event.prize_third | int) if event.prize_third else 0 }}"
+                     placeholder="0">
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom">📱 Número Nequi para pagos</label>
+          <div class="input-group" style="max-width: 280px;">
+            <span class="input-group-text" style="background: var(--bg); border: 2px solid var(--border); border-right: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); color: var(--text-muted);">
+              <i class="bi bi-phone"></i>
+            </span>
+            <input type="text" name="nequi_number"
+                   class="form-control-custom"
+                   style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0; border-left: none;"
+                   value="{{ event.nequi_number or '' }}"
+                   placeholder="Ej: 3001234567" maxlength="20">
+          </div>
+          <small class="text-muted">Se mostrará a los participantes en la ventana informativa de inscripción.</small>
+        </div>
+      </div>
       {% endif %}
       <div class="mb-4">
         <label class="form-label-custom">Descripción</label>

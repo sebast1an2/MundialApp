@@ -156,6 +156,19 @@ def events_edit(event_id):
         event.logo_emoji = request.form.get('logo_emoji', '🏆').strip()
         event.status = request.form.get('status', 'draft')
         event.can_view_others_predictions = bool(request.form.get('can_view_others_predictions'))
+
+        def _parse_int_field(name, default=0):
+            raw = request.form.get(name, str(default)).strip()
+            try:
+                return max(0, int(float(raw))) if raw else default
+            except (ValueError, TypeError):
+                return default
+
+        event.participation_fee = _parse_int_field('participation_fee')
+        event.prize_first       = _parse_int_field('prize_first')
+        event.prize_second      = _parse_int_field('prize_second')
+        event.prize_third       = _parse_int_field('prize_third')
+        event.nequi_number      = request.form.get('nequi_number', '').strip()[:20]
         db.session.commit()
         flash('Evento actualizado.', 'success')
         return redirect(url_for('admin.event_detail', event_id=event_id))
@@ -673,10 +686,59 @@ def scoring_config(event_id):
 @require_admin
 def participants(event_id):
     event = Event.query.get_or_404(event_id)
+    filter_val = request.args.get('filter', 'all')  # 'all' | 'pending' | 'paid'
     all_participants = Participant.query.filter_by(event_id=event_id)\
                                        .order_by(Participant.total_points.desc()).all()
+
+    if filter_val == 'pending':
+        display_participants = [p for p in all_participants if not p.payment_confirmed]
+    elif filter_val == 'paid':
+        display_participants = [p for p in all_participants if p.payment_confirmed]
+    else:
+        display_participants = all_participants
+
     return render_template('admin/participants.html',
-                           event=event, participants=all_participants)
+                           event=event,
+                           participants=all_participants,
+                           display_participants=display_participants,
+                           filter=filter_val)
+
+
+@admin_bp.route('/participants/<int:participant_id>/toggle-payment', methods=['POST'])
+@require_admin
+def toggle_payment(participant_id):
+    participant = Participant.query.get_or_404(participant_id)
+    participant.payment_confirmed = not participant.payment_confirmed
+    db.session.commit()
+    state = 'confirmado' if participant.payment_confirmed else 'pendiente'
+    flash(f'Pago de "{participant.name}" marcado como {state}.', 'success')
+    redirect_filter = request.form.get('redirect_filter', 'all')
+    return redirect(url_for('admin.participants',
+                            event_id=participant.event_id,
+                            filter=redirect_filter))
+
+
+@admin_bp.route('/participants/<int:participant_id>/delete', methods=['POST'])
+@require_admin
+def delete_participant(participant_id):
+    participant = Participant.query.get_or_404(participant_id)
+    event_id = participant.event_id
+    name = participant.name
+
+    # Eliminate scores and predictions explicitly (belt-and-suspenders with cascade)
+    match_ids = [p.match_id for p in Prediction.query.filter_by(participant_id=participant_id).all()]
+    Score.query.filter_by(participant_id=participant_id).delete(synchronize_session=False)
+    Prediction.query.filter_by(participant_id=participant_id).delete(synchronize_session=False)
+    db.session.delete(participant)
+    db.session.commit()
+
+    # Recalculate totals for remaining participants in the event so stats stay consistent
+    from app.services.scoring import recalculate_participant_totals
+    recalculate_participant_totals(event_id)
+
+    redirect_filter = request.form.get('redirect_filter', 'all')
+    flash(f'Participante "{name}" eliminado junto con todas sus predicciones y puntuaciones.', 'info')
+    return redirect(url_for('admin.participants', event_id=event_id, filter=redirect_filter))
 
 
 @admin_bp.route('/participants/<int:participant_id>')

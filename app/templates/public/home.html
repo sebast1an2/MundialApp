@@ -29,7 +29,125 @@
   </div>
 </section>
 
-<!-- Events Section -->
+{# ── Troquel Grafic Plus — Alianza Institucional ── #}
+<section class="troquel-banner">
+  <div class="container">
+    <div class="troquel-inner">
+
+      <div class="troquel-badge">
+        <i class="bi bi-shield-check-fill troquel-shield"></i>
+        <span>Aliado Institucional</span>
+      </div>
+
+      <div class="troquel-logo-wrap">
+        <img src="{{ url_for('static', filename='img/TroquelGraficPlus.png') }}"
+             alt="Troquel Grafic Plus"
+             class="troquel-logo">
+      </div>
+
+      <div class="troquel-divider"></div>
+
+      <div class="troquel-text">
+        <div class="troquel-company">Troquel Grafic Plus</div>
+        <p class="troquel-desc">
+          En alianza con Troquel Grafic Plus para brindar mayor transparencia,
+          organización y confianza en la gestión de las competencias y predicciones.
+        </p>
+      </div>
+
+      <div class="troquel-icon-group">
+        <i class="bi bi-patch-check-fill"></i>
+        <i class="bi bi-people-fill"></i>
+        <i class="bi bi-graph-up-arrow"></i>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<style>
+  .troquel-banner {
+    background: linear-gradient(135deg, #f0f4ff 0%, #e8f0fe 60%, #f5f0ff 100%);
+    border-top: 1px solid rgba(var(--primary-rgb, 13,27,42), .08);
+    border-bottom: 1px solid rgba(var(--primary-rgb, 13,27,42), .08);
+    padding: 1.25rem 0;
+  }
+  .troquel-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+  }
+  .troquel-badge {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    background: var(--primary);
+    color: #fff;
+    font-size: .7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    padding: .3rem .75rem;
+    border-radius: 50px;
+    white-space: nowrap;
+  }
+  .troquel-shield { font-size: .85rem; }
+  .troquel-logo-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border-radius: 10px;
+    padding: .5rem .9rem;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    border: 1px solid rgba(0,0,0,.06);
+  }
+  .troquel-logo {
+    height: 40px;
+    width: auto;
+    object-fit: contain;
+    display: block;
+  }
+  .troquel-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(0,0,0,.12);
+    flex-shrink: 0;
+  }
+  .troquel-text { max-width: 400px; }
+  .troquel-company {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: .95rem;
+    color: var(--primary);
+    letter-spacing: -.2px;
+    margin-bottom: .2rem;
+  }
+  .troquel-desc {
+    font-size: .78rem;
+    color: var(--text-muted);
+    margin: 0;
+    line-height: 1.5;
+  }
+  .troquel-icon-group {
+    display: flex;
+    gap: .6rem;
+    color: var(--primary);
+    opacity: .3;
+    font-size: 1.1rem;
+  }
+  @media (max-width: 576px) {
+    .troquel-divider { display: none; }
+    .troquel-inner   { gap: .75rem; }
+    .troquel-text    { text-align: center; }
+    .troquel-icon-group { display: none; }
+    .troquel-badge   { font-size: .65rem; }
+  }
+</style>
+
+
 <section class="py-5">
   <div class="container">
     {% if active_events %}
@@ -109,4 +227,6 @@
     </div>
   </div>
 </section>
+
+{# ── removed: replaced by top alliance banner ── #}
 {% endblock %}

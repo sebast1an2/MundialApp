@@ -2,6 +2,201 @@
 {% block title %}Validación — {{ event.name }}{% endblock %}
 
 {% block content %}
+
+{# ══════════════════════════════════════════════════════
+   MODAL INFORMATIVO — se muestra ANTES del formulario
+   Solo en step == 'cedula' (primer acceso al evento)
+   ══════════════════════════════════════════════════════ #}
+{% if step == 'cedula' %}
+<div class="modal fade" id="infoModal" tabindex="-1" aria-labelledby="infoModalLabel" aria-hidden="true"
+     data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content border-0" style="border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.25);">
+
+      {# ── Header ── #}
+      <div class="modal-header border-0 pb-0"
+           style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%); padding: 1.75rem 2rem 1.25rem;">
+        <div class="w-100 text-center">
+          <span style="font-size: 2.8rem; display: block; margin-bottom: .5rem;">{{ event.logo_emoji }}</span>
+          <h4 class="modal-title fw-bold text-white mb-0" id="infoModalLabel"
+              style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; letter-spacing: -.3px;">
+            ⚠️ Tener en cuenta
+          </h4>
+          <p class="text-white-50 mb-0 mt-1" style="font-size: .88rem;">{{ event.name }}</p>
+        </div>
+      </div>
+
+      {# ── Body ── #}
+      <div class="modal-body px-4 py-3" style="background: #f8f9fc; max-height: 70vh; overflow-y: auto;">
+
+        {# 1 · Cómo funciona #}
+        <div class="info-section mb-4">
+          <div class="info-section-title">
+            <i class="bi bi-question-circle-fill me-2" style="color: var(--primary);"></i>¿Cómo funciona la aplicación?
+          </div>
+          <div class="row g-2 mt-2">
+            {% for emoji, title, desc in [
+              ('1️⃣', 'Ingresa tu cédula',      'Accede al evento con tu número de identificación'),
+              ('2️⃣', 'Haz tus predicciones',   'Predice el marcador de cada partido de la fase activa'),
+              ('3️⃣', 'Sigue los resultados',   'El sistema calcula tus puntos automáticamente'),
+              ('4️⃣', 'Compite en el ranking',  'Ve tu posición en tiempo real frente a todos'),
+            ] %}
+            <div class="col-6 col-md-3">
+              <div class="info-step-card text-center">
+                <div style="font-size: 1.8rem;">{{ emoji }}</div>
+                <div class="fw-bold mt-1" style="font-size: .82rem; color: var(--primary); font-family: 'Outfit', sans-serif;">{{ title }}</div>
+                <div class="text-muted" style="font-size: .75rem; margin-top: .2rem;">{{ desc }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        {# 2 · Valor total del premio #}
+        {% set total_prize = (event.prize_first or 0) | int + (event.prize_second or 0) | int + (event.prize_third or 0) | int %}
+        {% if total_prize > 0 %}
+        <div class="info-section mb-4">
+          <div class="info-section-title">
+            <i class="bi bi-cash-coin me-2" style="color: var(--green-field);"></i>Valor total del premio
+          </div>
+          <div class="info-prize-total mt-2">
+            <span style="font-size: 2.2rem; font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--green-field);">
+              ${{ total_prize | format_currency }}
+            </span>
+            <span class="text-muted ms-2" style="font-size: .9rem;">en premios totales</span>
+          </div>
+        </div>
+        {% endif %}
+
+        {# 3 · Premios para ganadores #}
+        {% if (event.prize_first or 0) > 0 or (event.prize_second or 0) > 0 or (event.prize_third or 0) > 0 %}
+        <div class="info-section mb-4">
+          <div class="info-section-title">
+            <i class="bi bi-trophy-fill me-2" style="color: #b8860b;"></i>Premios para ganadores
+          </div>
+          <div class="row g-3 mt-1">
+            {% if (event.prize_first or 0) > 0 %}
+            <div class="col-md-4">
+              <div class="info-prize-card gold">
+                <div class="prize-medal">🥇</div>
+                <div class="prize-pos">Primer lugar</div>
+                <div class="prize-amount">${{ (event.prize_first | int) | format_currency }}</div>
+              </div>
+            </div>
+            {% endif %}
+            {% if (event.prize_second or 0) > 0 %}
+            <div class="col-md-4">
+              <div class="info-prize-card silver">
+                <div class="prize-medal">🥈</div>
+                <div class="prize-pos">Segundo lugar</div>
+                <div class="prize-amount">${{ (event.prize_second | int) | format_currency }}</div>
+              </div>
+            </div>
+            {% endif %}
+            {% if (event.prize_third or 0) > 0 %}
+            <div class="col-md-4">
+              <div class="info-prize-card bronze">
+                <div class="prize-medal">🥉</div>
+                <div class="prize-pos">Tercer lugar</div>
+                <div class="prize-amount">${{ (event.prize_third | int) | format_currency }}</div>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+
+          {# 4 · Condición de ajuste de premios #}
+          <p class="text-muted mt-3 mb-0"
+             style="font-size: .78rem; line-height: 1.5; border-left: 3px solid var(--border); padding-left: .75rem;">
+            <i class="bi bi-info-circle me-1"></i>
+            En caso de no alcanzarse el valor proyectado de recaudo por participación, la organización podrá ajustar
+            los premios proporcionalmente según la cantidad de participantes inscritos y el valor efectivamente recaudado.
+          </p>
+        </div>
+        {% endif %}
+
+        {# 5 · Información de pago #}
+        {% set fee = (event.participation_fee or 0) | int %}
+        <div class="info-section mb-4">
+          <div class="info-section-title">
+            <i class="bi bi-credit-card-fill me-2" style="color: #7c3aed;"></i>Información de pago
+          </div>
+          <div class="info-payment-box mt-2">
+            <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+              <div class="payment-fee-badge">
+                💰 Valor de participación:
+                <strong>
+                  {% if fee > 0 %}${{ fee | format_currency }}{% else %}<span class="text-muted">Por definir</span>{% endif %}
+                </strong>
+              </div>
+            </div>
+            {% if event.nequi_number %}
+            <div class="nequi-block">
+              <div class="d-flex align-items-center gap-2 mb-2">
+                <div class="nequi-icon">📱</div>
+                <div>
+                  <div class="nequi-label">Número Nequi para transferencia</div>
+                  <div class="nequi-number">{{ event.nequi_number }}</div>
+                </div>
+              </div>
+              <div class="nequi-instruction">
+                <i class="bi bi-whatsapp me-1" style="color: #25d366;"></i>
+                Envía el comprobante de pago vía <strong>WhatsApp</strong> al mismo número
+                <strong>{{ event.nequi_number }}</strong>.
+              </div>
+            </div>
+            {% else %}
+            <div class="text-muted" style="font-size: .85rem;">
+              <i class="bi bi-info-circle me-1"></i>
+              El administrador informará el medio de pago próximamente.
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        {# 6 · Advertencia de pago #}
+        <div class="info-warning-box">
+          <i class="bi bi-exclamation-triangle-fill me-2" style="font-size: 1.1rem; flex-shrink: 0;"></i>
+          <div>
+            <strong>Importante:</strong> La participación será validada únicamente después de confirmar el pago
+            correspondiente. Los participantes que no realicen el pago podrán ser retirados del evento.
+          </div>
+        </div>
+
+        {# 7 · Troquel Grafic Plus — Respaldo institucional #}
+        <div class="info-troquel-box mt-3">
+          <img src="{{ url_for('static', filename='img/TroquelGraficPlus.png') }}"
+               alt="Troquel Grafic Plus"
+               style="height: 36px; width: auto; object-fit: contain; flex-shrink: 0;">
+          <p class="mb-0" style="font-size: .78rem; color: var(--text-muted); line-height: 1.5;">
+            Este evento cuenta con el acompañamiento y respaldo de
+            <strong style="color: var(--primary);">Troquel Grafic Plus</strong>
+            como aliado para brindar mayor transparencia, control y confianza en la gestión
+            de la participación y administración del torneo.
+          </p>
+        </div>
+
+      </div>{# end modal-body #}
+
+      {# ── Footer ── #}
+      <div class="modal-footer border-0 px-4 pb-4 pt-0" style="background: #f8f9fc; justify-content: center; flex-direction: column; gap: .75rem;">
+        {# Scroll hint — se oculta cuando el botón aparece #}
+        <div id="scrollHint" class="text-muted text-center" style="font-size: .82rem; animation: bounce 1.4s ease-in-out infinite;">
+          <i class="bi bi-chevron-double-down me-1"></i>Desplázate hasta el final para continuar
+        </div>
+        <button type="button" class="btn-primary-custom px-5 py-3"
+                id="acceptInfoBtn"
+                style="font-size: 1rem; border-radius: 50px; min-width: 220px;
+                       display: none; opacity: 0; transition: opacity .4s ease;">
+          <i class="bi bi-check-circle-fill me-2"></i>Entendido, ¡Participar!
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ══ MAIN PAGE — formulario de validación ══ #}
 <section class="py-5 bg-light min-vh-100 d-flex align-items-center">
   <div class="container">
     <div class="row justify-content-center">
@@ -15,7 +210,7 @@
           <div class="card-body-custom p-4">
             
             {% if step == 'cedula' %}
-              <form method="POST">
+              <form method="POST" id="cedulaForm" style="display:none;">
                 <div class="mb-4">
                   <label class="form-label-custom">Ingresa tu número de cédula</label>
                   <div class="input-group">
@@ -31,6 +226,12 @@
                   Continuar <i class="bi bi-arrow-right ms-2"></i>
                 </button>
               </form>
+
+              {# Placeholder mientras el modal está abierto #}
+              <div id="modalPlaceholder" class="text-center py-4">
+                <div style="font-size: 3rem; animation: float 2s ease-in-out infinite;">📋</div>
+                <p class="text-muted mt-3">Revisa las condiciones del evento antes de continuar...</p>
+              </div>
 
             {% elif step == 'name' %}
               <div class="alert alert-info border-0 mb-4" style="background: rgba(13, 110, 253, 0.1); color: var(--primary);">
@@ -82,4 +283,144 @@
     </div>
   </div>
 </section>
+
+{# ── Styles for info modal ── #}
+<style>
+  .info-section-title {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 700;
+    font-size: .95rem;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding-bottom: .4rem;
+    border-bottom: 2px solid var(--border);
+  }
+  .info-step-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: .9rem .6rem;
+    height: 100%;
+    transition: box-shadow .2s;
+  }
+  .info-step-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+
+  /* Prize cards */
+  .info-prize-card {
+    border-radius: 12px;
+    padding: 1.1rem 1rem;
+    text-align: center;
+    border: 2px solid transparent;
+  }
+  .info-prize-card.gold   { background: linear-gradient(135deg, #fffbe6, #fef3c7); border-color: #fbbf24; }
+  .info-prize-card.silver { background: linear-gradient(135deg, #f1f5f9, #e2e8f0); border-color: #94a3b8; }
+  .info-prize-card.bronze { background: linear-gradient(135deg, #fff7ed, #fed7aa); border-color: #fb923c; }
+  .prize-medal  { font-size: 2rem; }
+  .prize-pos    { font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted); margin: .3rem 0 .2rem; }
+  .prize-amount { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.3rem; color: var(--primary); }
+
+  /* Payment block */
+  .info-payment-box {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+  }
+  .payment-fee-badge {
+    background: rgba(124, 58, 237, 0.08);
+    color: #7c3aed;
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 8px;
+    padding: .45rem .9rem;
+    font-size: .9rem;
+    font-weight: 500;
+  }
+  .nequi-block {
+    background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+    border: 1px solid #a5d6a7;
+    border-radius: 10px;
+    padding: .9rem 1rem;
+  }
+  .nequi-icon   { font-size: 1.6rem; }
+  .nequi-label  { font-size: .75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .4px; }
+  .nequi-number { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 1.4rem; color: var(--green-field); letter-spacing: 1px; }
+  .nequi-instruction { font-size: .82rem; color: var(--text); margin-top: .6rem; background: rgba(255,255,255,.7); border-radius: 6px; padding: .5rem .75rem; }
+
+  /* Warning */
+  .info-warning-box {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    background: linear-gradient(135deg, #fff3cd, #fef9e7);
+    border: 1px solid #fbbf24;
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    font-size: .86rem;
+    color: #78350f;
+    font-weight: 500;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0);    opacity: .6; }
+    50%       { transform: translateY(5px);  opacity: 1;  }
+  }
+
+  .info-troquel-box {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: .85rem 1rem;
+  }
+</style>
+
+{# ── Script: auto-show modal, scroll-gate, reveal form on accept ── #}
+{% if step == 'cedula' %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var modalEl  = document.getElementById('infoModal');
+    var infoModal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+    infoModal.show();
+
+    var btn       = document.getElementById('acceptInfoBtn');
+    var hint      = document.getElementById('scrollHint');
+    var modalBody = modalEl.querySelector('.modal-body');
+    var revealed  = false;
+
+    function checkScroll() {
+      if (revealed) return;
+      // Consider "bottom" when within 30px of the scrollable end
+      var atBottom = modalBody.scrollTop + modalBody.clientHeight >= modalBody.scrollHeight - 30;
+      if (atBottom) {
+        revealed = true;
+        hint.style.display = 'none';
+        btn.style.display  = 'inline-flex';
+        // Trigger reflow then fade in
+        requestAnimationFrame(function() {
+          requestAnimationFrame(function() { btn.style.opacity = '1'; });
+        });
+        modalBody.removeEventListener('scroll', checkScroll);
+      }
+    }
+
+    // Check immediately in case content is short enough to not need scrolling
+    modalEl.addEventListener('shown.bs.modal', function () {
+      checkScroll();
+      modalBody.addEventListener('scroll', checkScroll);
+    });
+
+    btn.addEventListener('click', function () {
+      infoModal.hide();
+      document.getElementById('modalPlaceholder').style.display = 'none';
+      document.getElementById('cedulaForm').style.display = 'block';
+      var input = document.querySelector('#cedulaForm input[name="cedula"]');
+      if (input) setTimeout(function(){ input.focus(); }, 200);
+    });
+  });
+</script>
+{% endif %}
+
 {% endblock %}
