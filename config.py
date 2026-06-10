@@ -18,5 +18,5 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Admin credentials (change in production via env vars)
-    ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
-    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin2026')
+    ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'troquel')
+    ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'troquel2026*')
