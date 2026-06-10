@@ -40,6 +40,7 @@
       </div>
     {% else %}
     <form method="POST" action="{{ url_for('admin.matches_new', event_id=event.id) }}" class="row g-3 align-items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% set is_group_phase = false %}
       {% if selected_phase and (('grupo' in selected_phase.name|lower) or (selected_phase.phase_order == 1)) %}
         {% set is_group_phase = true %}
@@ -141,6 +142,7 @@
             <td>
               <form method="POST" action="{{ url_for('admin.matches_delete', match_id=match.id) }}" class="d-inline"
                     onsubmit="return confirmAction('¿Eliminar este partido?', event);">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger">
                   <i class="bi bi-trash"></i>
                 </button>

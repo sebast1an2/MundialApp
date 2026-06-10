@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
 from flask import current_app
+from app import limiter
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -23,6 +24,7 @@ def require_admin(f):
 
 
 @auth_bp.route('/admin/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def login():
     if is_admin():
         return redirect(url_for('admin.dashboard'))
@@ -50,3 +52,8 @@ def logout():
     session.clear()
     flash('Sesión cerrada correctamente.', 'info')
     return redirect(url_for('auth.login'))
+
+
+@auth_bp.errorhandler(429)
+def ratelimit_handler(e):
+    return render_template('auth/login.html', error="Límite de intentos superado. Por favor, espera un minuto antes de volver a intentar."), 429

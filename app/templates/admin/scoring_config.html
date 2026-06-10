@@ -21,6 +21,7 @@
     </div>
 
     <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% for cfg in configs %}
       <div class="card-custom mb-3" style="border: 2px solid {% if cfg.is_active %}var(--green-soft){% else %}var(--border){% endif %};">
         <div class="card-body-custom">

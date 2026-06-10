@@ -11,6 +11,7 @@
   </div>
   <!-- New group form -->
   <form method="POST" action="{{ url_for('admin.groups_new', event_id=event.id) }}" class="d-flex gap-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="text" name="name" class="form-control-custom" style="width: 80px;"
            placeholder="A" maxlength="5" required>
     <button type="submit" class="btn-primary-custom">
@@ -31,6 +32,7 @@
         <div class="d-flex gap-1">
           <form method="POST" action="{{ url_for('admin.groups_generate_matches', group_id=group.id) }}" class="d-inline m-0"
                 onsubmit="return confirmAction('¿Generar automáticamente partidos Todos-contra-Todos para el Grupo {{ group.name }}?', event);">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:rgba(255,255,255,.9);border:none;font-size:.75rem;font-weight:600;"
                     title="Generar Partidos (Round Robin)">
               <i class="bi bi-calendar-plus me-1"></i>Partidos
@@ -39,6 +41,7 @@
           
           <form method="POST" action="{{ url_for('admin.groups_delete', group_id=group.id) }}" class="d-inline m-0"
                 onsubmit="return confirmAction('¿Eliminar el Grupo {{ group.name }}?', event);">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm ms-1" style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:none;"
                     title="Eliminar Grupo">
               <i class="bi bi-trash"></i>
@@ -48,6 +51,7 @@
       </div>
       <div class="card-body-custom">
         <form method="POST" action="{{ url_for('admin.group_teams_update', group_id=group.id) }}" id="form-group-{{ group.id }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           
           <div class="mb-3">
             <label class="form-label-custom">Equipos Asignados</label>

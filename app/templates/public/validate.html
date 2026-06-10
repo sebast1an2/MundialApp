@@ -220,6 +220,7 @@ Solo en step == 'cedula' (primer acceso al evento)
 
             {% if step == 'cedula' %}
             <form method="POST" id="cedulaForm" style="display:none;">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <div class="mb-4">
                 <label class="form-label-custom">Ingresa tu número de cédula</label>
                 <div class="input-group">
@@ -249,6 +250,7 @@ Solo en step == 'cedula' (primer acceso al evento)
               Parece que es tu primera vez en este evento. Por favor, regístrate.
             </div>
             <form method="POST">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <input type="hidden" name="cedula" value="{{ cedula }}">
               <div class="mb-3">
                 <label class="form-label-custom">Cédula</label>

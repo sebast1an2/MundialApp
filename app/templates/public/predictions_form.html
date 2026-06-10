@@ -17,6 +17,7 @@
 
   <form method="POST" action="{{ url_for('public.save_predictions', event_id=event.id) }}"
         id="predictions-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="cedula" value="{{ participant.cedula }}">
     <input type="hidden" name="phase_id" value="{{ phase.id }}">
 

@@ -17,6 +17,7 @@
   <div class="card-body-custom">
     <form method="POST" action="{{ url_for('admin.phases_new', event_id=event.id) }}"
           class="row g-3 align-items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="col-12 col-md-5">
         <label class="form-label-custom">Nombre de la fase *</label>
         <select name="name" class="form-control-custom" required>
@@ -72,6 +73,7 @@
         <div class="d-flex gap-2 flex-wrap">
           <!-- Toggle open/close -->
           <form method="POST" action="{{ url_for('admin.phases_toggle', phase_id=phase.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% if phase.is_prediction_open %}
               <button type="submit" class="btn btn-sm btn-warning fw-bold">
                 <i class="bi bi-lock me-1"></i>Cerrar Predicciones
@@ -89,6 +91,7 @@
 
           <form method="POST" action="{{ url_for('admin.phases_delete', phase_id=phase.id) }}" class="d-inline"
                 onsubmit="return confirmAction('¿Seguro que deseas eliminar esta fase? Se eliminarán también sus partidos y predicciones.', event);">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm btn-outline-danger">
               <i class="bi bi-trash"></i>
             </button>

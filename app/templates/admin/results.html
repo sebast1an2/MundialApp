@@ -47,6 +47,7 @@
 
           <!-- Teams vs Score form -->
           <form method="POST" action="{{ url_for('admin.matches_result', match_id=match.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="match-teams align-items-center">
               <!-- Home team -->
               <div class="team-block">

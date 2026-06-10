@@ -153,6 +153,7 @@
               <form method="POST"
                     action="{{ url_for('admin.toggle_payment', participant_id=p.id) }}"
                     class="d-inline payment-toggle-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="redirect_filter" value="{{ filter }}">
                 <div class="form-check form-switch d-flex justify-content-center m-0" title="{{ 'Confirmado' if p.payment_confirmed else 'Pendiente' }}">
                   <input class="form-check-input payment-switch"
@@ -177,6 +178,7 @@
                       action="{{ url_for('admin.delete_participant', participant_id=p.id) }}"
                       class="d-inline"
                       onsubmit="return confirmAction('⚠️ ¿Eliminar a <strong>{{ p.name }}</strong>?\n\nEsta acción es <strong>irreversible</strong> y eliminará:\n• Todas sus predicciones en este evento\n• Sus puntuaciones y pago confirmado\n\nEl resto del evento no se verá afectado.', event)">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="redirect_filter" value="{{ filter }}">
                   <button type="submit" class="btn btn-sm btn-outline-danger"
                           title="Eliminar participante">

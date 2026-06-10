@@ -37,6 +37,7 @@
             Ingresa tu número de cédula. Si ya participaste, podrás ver el estado de tus predicciones.
           </div>
           <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="step" value="cedula">
             <div class="mb-4">
               <label class="form-label-custom">Número de Cédula / Identificación *</label>
@@ -62,6 +63,7 @@
             ¡Cédula válida! Ingresa tu nombre para registrarte.
           </div>
           <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="step" value="name">
             <input type="hidden" name="cedula" value="{{ cedula }}">
             <div class="mb-3">

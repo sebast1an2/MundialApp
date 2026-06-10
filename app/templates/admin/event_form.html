@@ -15,6 +15,7 @@
   <div class="card-header-custom">Datos del Evento</div>
   <div class="card-body-custom">
     <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="mb-3">
         <label class="form-label-custom">Nombre del evento *</label>
         <input type="text" name="name" class="form-control-custom"

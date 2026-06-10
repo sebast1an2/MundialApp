@@ -25,6 +25,7 @@
     
     <form method="POST" action="{{ url_for('admin.events_delete', event_id=event.id) }}" class="d-inline m-0" 
           onsubmit="return confirmAction('⚠️ ATENCIÓN EXTREMA ⚠️\n\n¿Estás seguro de ELIMINAR el evento \'{{ event.name }}\'?\n\nSe borrarán de forma irreversible:\n- Grupos y Fases\n- Todos los partidos\n- Todos los participantes\n- Todas las predicciones y puntos\n\nEsta acción NO se puede deshacer.', event);">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-outline-danger" style="border-radius: 8px; padding: .6rem 1rem; font-weight: 600;">
         <i class="bi bi-trash"></i> Eliminar Evento
       </button>
