@@ -6,22 +6,6 @@
 <!-- Hero Section -->
 <section class="hero position-relative" style="padding: 0; min-height: 0; background: none; overflow: hidden;">
   <img src="{{ url_for('static', filename='img/Banner.png') }}" alt="Banner Principal" class="w-100" style="height: auto; max-height: 60vh; object-fit: cover;">
-  <div class="position-absolute w-100" style="bottom: 10%; left: 0; z-index: 2;">
-    <div class="container">
-      {% if active_events %}
-      <div class="d-flex gap-3 justify-content-center flex-wrap fade-in-up fade-in-up-delay-2">
-        {% for ev in active_events %}
-        <a href="{{ url_for('public.event_detail', event_id=ev.id) }}" class="btn-primary-custom shadow-lg"
-          style="font-size: 1rem; padding: .75rem 2rem;">
-          <span style="font-size: 1.2rem;">{{ ev.logo_emoji }}</span>
-          {{ ev.name }}
-          <i class="bi bi-arrow-right ms-1"></i>
-        </a>
-        {% endfor %}
-      </div>
-      {% endif %}
-    </div>
-  </div>
 </section>
 
 {# ── Troquel Grafic — Alianza Institucional ── #}
