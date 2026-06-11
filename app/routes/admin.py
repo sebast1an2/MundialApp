@@ -594,6 +594,17 @@ def matches_delete(match_id):
     return redirect(url_for('admin.matches', event_id=event_id, phase_id=phase_id))
 
 
+@admin_bp.route('/matches/<int:match_id>/toggle-lock', methods=['POST'])
+@require_admin
+def matches_toggle_lock(match_id):
+    match = Match.query.get_or_404(match_id)
+    match.is_locked = not match.is_locked
+    db.session.commit()
+    state = 'bloqueado' if match.is_locked else 'desbloqueado'
+    flash(f'El partido ha sido {state} para predicciones.', 'success')
+    return redirect(url_for('admin.matches', event_id=match.phase.event_id, phase_id=match.phase_id))
+
+
 # ─── RESULTS ─────────────────────────────────────────────────────────────────
 
 @admin_bp.route('/events/<int:event_id>/results')

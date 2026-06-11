@@ -146,6 +146,7 @@ class Match(db.Model):
     away_score = db.Column(db.Integer, nullable=True)
     penalty_winner_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True)
     is_finished = db.Column(db.Boolean, default=False)
+    is_locked = db.Column(db.Boolean, default=False)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

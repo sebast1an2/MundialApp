@@ -212,6 +212,11 @@ def save_predictions(event_id):
         home_raw = request.form.get(f'home_{match.id}', '').strip()
         away_raw = request.form.get(f'away_{match.id}', '').strip()
 
+        if match.is_locked:
+            if home_raw != '' or away_raw != '':
+                errors.append(f'El partido {match.home_team.name} vs {match.away_team.name} está bloqueado.')
+            continue
+
         if home_raw == '' or away_raw == '':
             errors.append(f'Falta predicción para {match.home_team.name} vs {match.away_team.name}')
             continue
