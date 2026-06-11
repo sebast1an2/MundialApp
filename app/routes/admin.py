@@ -686,14 +686,30 @@ def scoring_config(event_id):
 @require_admin
 def participants(event_id):
     event = Event.query.get_or_404(event_id)
-    filter_val = request.args.get('filter', 'all')  # 'all' | 'pending' | 'paid'
+    filter_val = request.args.get('filter', 'all')  # 'all' | 'pending' | 'paid' | 'predicted' | 'no_predicted'
     all_participants = Participant.query.filter_by(event_id=event_id)\
                                        .order_by(Participant.total_points.desc()).all()
+
+    # Build a set of participant IDs that have at least one prediction in this event.
+    # Uses a single DB query over the existing Prediction table — no schema changes.
+    participant_ids_in_event = [p.id for p in all_participants]
+    if participant_ids_in_event:
+        rows = (db.session.query(Prediction.participant_id)
+                .filter(Prediction.participant_id.in_(participant_ids_in_event))
+                .distinct()
+                .all())
+        participants_with_predictions = {row[0] for row in rows}
+    else:
+        participants_with_predictions = set()
 
     if filter_val == 'pending':
         display_participants = [p for p in all_participants if not p.payment_confirmed]
     elif filter_val == 'paid':
         display_participants = [p for p in all_participants if p.payment_confirmed]
+    elif filter_val == 'predicted':
+        display_participants = [p for p in all_participants if p.id in participants_with_predictions]
+    elif filter_val == 'no_predicted':
+        display_participants = [p for p in all_participants if p.id not in participants_with_predictions]
     else:
         display_participants = all_participants
 
@@ -701,6 +717,7 @@ def participants(event_id):
                            event=event,
                            participants=all_participants,
                            display_participants=display_participants,
+                           participants_with_predictions=participants_with_predictions,
                            filter=filter_val)
 
 

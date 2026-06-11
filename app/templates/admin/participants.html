@@ -11,6 +11,10 @@
   </div>
 </div>
 
+{# ── Compute prediction counters ───────────────────────────────── #}
+{% set predicted_count    = participants | selectattr('id', 'in', participants_with_predictions) | list | length %}
+{% set no_predicted_count = participants | length - predicted_count %}
+
 {# ── Financial Summary KPI Cards ──────────────────────────────── #}
 {% set paid_count     = participants | selectattr('payment_confirmed') | list | length %}
 {% set pending_count  = participants | length - paid_count %}
@@ -45,8 +49,29 @@
       </div>
     </div>
   </div>
+
+  {# ── NEW: Prediction progress KPI ── #}
   <div class="col-6 col-md-4 col-xl-2">
-    <div class="kpi-card">
+    <div class="kpi-card" style="border-color: rgba(99,102,241,.35);">
+      <div class="kpi-icon" style="background: rgba(99,102,241,.12);">
+        <i class="bi bi-pencil-square" style="color: #6366f1;"></i>
+      </div>
+      <div style="width:100%;">
+        <div class="kpi-value" style="color: #6366f1;">{{ predicted_count }}</div>
+        <div class="kpi-label">Con predicción</div>
+        {% if participants | length > 0 %}
+        {% set pct = ((predicted_count / (participants | length)) * 100) | round | int %}
+        <div class="prediction-progress-bar-wrap mt-1">
+          <div class="prediction-progress-bar-fill" style="width: {{ pct }}%;"></div>
+        </div>
+        <div style="font-size:.65rem; color: rgba(255,255,255,.45); margin-top:2px;">{{ pct }}% completado</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-6 col-md-4 col-xl-2">
+    <div class="kpi-card" style="border-color: rgba(251,191,36,.3);">
       <div class="kpi-icon gold"><i class="bi bi-currency-dollar" style="color: #b8860b;"></i></div>
       <div>
         <div class="kpi-value" style="color: #b8860b; font-size: 1.5rem;">
@@ -56,7 +81,7 @@
       </div>
     </div>
   </div>
-  <div class="col-12 col-md-4 col-xl-4">
+  <div class="col-12 col-md-4 col-xl-2">
     <div class="kpi-card" style="background: linear-gradient(135deg, var(--green-field), var(--green-soft)); border-color: var(--green-field);">
       <div class="kpi-icon" style="background: rgba(255,255,255,.2);"><i class="bi bi-cash-coin" style="color:#fff; font-size: 1.6rem;"></i></div>
       <div>
@@ -82,22 +107,39 @@
 {# ── Filter bar ───────────────────────────────────────────── #}
 <div class="card-custom mb-3">
   <div class="card-body-custom py-2 px-3">
-    <div class="d-flex align-items-center gap-3 flex-wrap">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
       <span class="form-label-custom mb-0">Filtrar:</span>
+
       <a href="{{ url_for('admin.participants', event_id=event.id) }}"
          class="btn btn-sm {% if filter == 'all' %}btn-dark{% else %}btn-outline-secondary{% endif %}"
          style="border-radius: var(--radius-sm); font-weight: 600;">
         <i class="bi bi-people me-1"></i>Todos ({{ participants | length }})
       </a>
+
+      {# ── Payment filters ── #}
+      <span class="filter-divider"></span>
       <a href="{{ url_for('admin.participants', event_id=event.id, filter='pending') }}"
          class="btn btn-sm {% if filter == 'pending' %}btn-danger{% else %}btn-outline-danger{% endif %}"
          style="border-radius: var(--radius-sm); font-weight: 600;">
-        <i class="bi bi-clock me-1"></i>Pendientes ({{ pending_count }})
+        <i class="bi bi-clock me-1"></i>Pago pendiente ({{ pending_count }})
       </a>
       <a href="{{ url_for('admin.participants', event_id=event.id, filter='paid') }}"
          class="btn btn-sm {% if filter == 'paid' %}btn-success{% else %}btn-outline-success{% endif %}"
          style="border-radius: var(--radius-sm); font-weight: 600;">
-        <i class="bi bi-check-circle me-1"></i>Confirmados ({{ paid_count }})
+        <i class="bi bi-check-circle me-1"></i>Pago confirmado ({{ paid_count }})
+      </a>
+
+      {# ── Prediction filters (NEW) ── #}
+      <span class="filter-divider"></span>
+      <a href="{{ url_for('admin.participants', event_id=event.id, filter='predicted') }}"
+         class="btn btn-sm {% if filter == 'predicted' %}btn-prediction-yes{% else %}btn-outline-prediction-yes{% endif %}"
+         style="border-radius: var(--radius-sm); font-weight: 600;">
+        <i class="bi bi-pencil-fill me-1"></i>Con predicción ({{ predicted_count }})
+      </a>
+      <a href="{{ url_for('admin.participants', event_id=event.id, filter='no_predicted') }}"
+         class="btn btn-sm {% if filter == 'no_predicted' %}btn-prediction-no{% else %}btn-outline-prediction-no{% endif %}"
+         style="border-radius: var(--radius-sm); font-weight: 600;">
+        <i class="bi bi-hourglass-split me-1"></i>Sin predicción ({{ no_predicted_count }})
       </a>
     </div>
   </div>
@@ -107,8 +149,10 @@
 <div class="card-custom">
   <div class="card-header-custom">
     <i class="bi bi-people me-2"></i>Lista de Participantes
-    {% if filter == 'pending' %}<span class="badge bg-danger ms-2">Solo pendientes</span>{% endif %}
+    {% if filter == 'pending' %}<span class="badge bg-danger ms-2">Solo pagos pendientes</span>{% endif %}
     {% if filter == 'paid' %}<span class="badge bg-success ms-2">Solo confirmados</span>{% endif %}
+    {% if filter == 'predicted' %}<span class="badge ms-2 badge-pred-yes">Con predicción</span>{% endif %}
+    {% if filter == 'no_predicted' %}<span class="badge ms-2 badge-pred-no">Sin predicción</span>{% endif %}
   </div>
   <div class="card-body-custom p-0">
     {% if display_participants %}
@@ -121,13 +165,15 @@
             <th>Cédula</th>
             <th>Puntos</th>
             <th>Registro</th>
+            <th style="text-align:center;">Predicciones</th>
             <th style="text-align:center;">Pago confirmado</th>
             <th style="text-align:center;">Acciones</th>
           </tr>
         </thead>
         <tbody>
           {% for p in display_participants %}
-          <tr class="fade-in-up {% if not p.payment_confirmed %}payment-pending-row{% endif %}">
+          {% set has_prediction = p.id in participants_with_predictions %}
+          <tr class="fade-in-up {% if not p.payment_confirmed %}payment-pending-row{% endif %} {% if not has_prediction %}no-prediction-row{% endif %}">
             <td>
               <div class="rank-number {% if loop.index == 1 %}pos-1{% elif loop.index == 2 %}pos-2{% elif loop.index == 3 %}pos-3{% endif %}">
                 {{ loop.index }}
@@ -149,6 +195,20 @@
               <small class="text-muted">pts</small>
             </td>
             <td><small class="text-muted">{{ p.created_at.strftime('%d/%m/%Y') }}</small></td>
+
+            {# ── Prediction status column (NEW) ── #}
+            <td style="text-align:center;">
+              {% if has_prediction %}
+                <span class="pred-badge pred-badge-yes" title="Ha realizado predicciones">
+                  <i class="bi bi-pencil-fill"></i> Realizada
+                </span>
+              {% else %}
+                <span class="pred-badge pred-badge-no" title="No ha realizado predicciones">
+                  <i class="bi bi-hourglass-split"></i> Pendiente
+                </span>
+              {% endif %}
+            </td>
+
             <td style="text-align:center;">
               <form method="POST"
                     action="{{ url_for('admin.toggle_payment', participant_id=p.id) }}"
@@ -195,11 +255,17 @@
     {% else %}
       <div class="text-center py-5 text-muted">
         <div style="font-size: 3rem;">
-          {% if filter == 'pending' %}⏳{% elif filter == 'paid' %}✅{% else %}👥{% endif %}
+          {% if filter == 'pending' %}⏳
+          {% elif filter == 'paid' %}✅
+          {% elif filter == 'predicted' %}✏️
+          {% elif filter == 'no_predicted' %}⏳
+          {% else %}👥{% endif %}
         </div>
         <p class="mt-2">
           {% if filter == 'pending' %}No hay participantes con pagos pendientes.
           {% elif filter == 'paid' %}No hay participantes con pago confirmado aún.
+          {% elif filter == 'predicted' %}Ningún participante ha realizado predicciones todavía.
+          {% elif filter == 'no_predicted' %}¡Todos los participantes ya realizaron sus predicciones! 🎉
           {% else %}Aún no hay participantes en este evento.{% endif %}
         </p>
       </div>
@@ -208,6 +274,7 @@
 </div>
 
 <style>
+  /* ── Existing payment styles (unchanged) ───────────────────── */
   .payment-pending-row { background: rgba(230, 57, 70, 0.03); }
   .badge-payment-pending {
     font-size: .68rem; font-weight: 700;
@@ -220,5 +287,108 @@
     padding: .15rem .5rem; border-radius: 50px;
   }
   .payment-switch:checked { background-color: var(--green-field) !important; border-color: var(--green-field) !important; }
+
+  /* ── Prediction status badge ────────────────────────────────── */
+  .pred-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-size: .75rem;
+    font-weight: 700;
+    padding: .3rem .7rem;
+    border-radius: 50px;
+    white-space: nowrap;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .pred-badge:hover { transform: translateY(-1px); }
+
+  .pred-badge-yes {
+    background: rgba(99, 102, 241, .15);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, .35);
+    box-shadow: 0 0 8px rgba(99, 102, 241, .12);
+  }
+  .pred-badge-yes .bi { font-size: .7rem; }
+
+  .pred-badge-no {
+    background: rgba(251, 191, 36, .12);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, .3);
+    box-shadow: 0 0 8px rgba(251, 191, 36, .08);
+  }
+  .pred-badge-no .bi { font-size: .7rem; }
+
+  /* ── No-prediction row subtle highlight ─────────────────────── */
+  .no-prediction-row { background: rgba(251, 191, 36, 0.02); }
+
+  /* ── KPI progress bar for prediction coverage ──────────────── */
+  .prediction-progress-bar-wrap {
+    height: 4px;
+    background: rgba(255,255,255,.1);
+    border-radius: 99px;
+    overflow: hidden;
+    width: 100%;
+  }
+  .prediction-progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #a5b4fc);
+    border-radius: 99px;
+    transition: width .6s ease;
+  }
+
+  /* ── Filter bar extras ──────────────────────────────────────── */
+  .filter-divider {
+    display: inline-block;
+    width: 1px;
+    height: 1.4rem;
+    background: rgba(255,255,255,.12);
+    vertical-align: middle;
+    margin: 0 .1rem;
+  }
+
+  /* Prediction filter buttons */
+  .btn-prediction-yes {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: #fff;
+  }
+  .btn-prediction-yes:hover { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+  .btn-outline-prediction-yes {
+    border: 1px solid #6366f1;
+    color: #a5b4fc;
+    background: transparent;
+  }
+  .btn-outline-prediction-yes:hover { background: rgba(99,102,241,.15); color: #a5b4fc; }
+
+  .btn-prediction-no {
+    background: #d97706;
+    border-color: #d97706;
+    color: #fff;
+  }
+  .btn-prediction-no:hover { background: #b45309; border-color: #b45309; color: #fff; }
+  .btn-outline-prediction-no {
+    border: 1px solid #d97706;
+    color: #fbbf24;
+    background: transparent;
+  }
+  .btn-outline-prediction-no:hover { background: rgba(217,119,6,.12); color: #fbbf24; }
+
+  /* Header badge variants */
+  .badge-pred-yes {
+    background: rgba(99,102,241,.2);
+    color: #a5b4fc;
+    border: 1px solid rgba(99,102,241,.4);
+    font-size: .72rem;
+    padding: .25rem .6rem;
+    border-radius: 50px;
+  }
+  .badge-pred-no {
+    background: rgba(217,119,6,.15);
+    color: #fbbf24;
+    border: 1px solid rgba(217,119,6,.35);
+    font-size: .72rem;
+    padding: .25rem .6rem;
+    border-radius: 50px;
+  }
 </style>
 {% endblock %}
