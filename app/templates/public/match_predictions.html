@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}Detalle de Aciertos — {{ match.home_team.name }} vs {{ match.away_team.name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+    <div>
+      <a href="{{ url_for('public.event_detail', event_id=event.id) }}#section-resultados" class="text-muted small text-decoration-none">
+        <i class="bi bi-arrow-left me-1"></i>{{ event.name }}
+      </a>
+      <h1 style="font-size: 1.8rem; margin: .25rem 0 0;">
+        📊 Detalle de Aciertos
+      </h1>
+    </div>
+    <span style="color: var(--text-muted); font-size: .9rem;">{{ match.phase.name }} &bull; {{ match.match_date.strftime('%d/%m %H:%M') if match.match_date else 'S/D' }}</span>
+  </div>
+
+  <!-- Match Info -->
+  <div class="card-custom mb-5" style="border-left: 4px solid var(--primary);">
+    <div class="card-body-custom">
+      <div class="d-flex align-items-center justify-content-center gap-4 flex-wrap">
+        <div class="text-end">
+          <span style="font-size: 1.5rem;" class="me-2">{{ match.home_team.flag_emoji }}</span>
+          <span class="fw-bold" style="font-size: 1.2rem;">{{ match.home_team.name }}</span>
+        </div>
+        <div class="bg-dark text-white rounded px-3 py-2 fw-bold" style="font-size: 1.5rem; letter-spacing: 2px;">
+          {{ match.home_score }} - {{ match.away_score }}
+        </div>
+        <div class="text-start">
+          <span class="fw-bold" style="font-size: 1.2rem;">{{ match.away_team.name }}</span>
+          <span style="font-size: 1.5rem;" class="ms-2">{{ match.away_team.flag_emoji }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MACRO for rendering sections -->
+  {% macro render_section(title, icon, items, border_color) %}
+  <div class="mb-5">
+    <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-main);">
+      {{ icon }} {{ title }} ({{ items|length }})
+    </h3>
+    
+    {% if items %}
+      <!-- Desktop Table -->
+      <div class="card-custom d-none d-md-block" style="border-left: 4px solid {{ border_color }};">
+        <div class="card-body-custom p-0">
+          <div class="table-responsive">
+            <table class="table-custom">
+              <thead>
+                <tr>
+                  <th style="padding-left: 1.5rem;">Participante</th>
+                  <th style="text-align: right; padding-right: 1.5rem;">Predicción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in items %}
+                <tr>
+                  <td style="padding-left: 1.5rem;"><strong style="font-size: .95rem;">{{ item.participant.name }}</strong></td>
+                  <td style="text-align: right; padding-right: 1.5rem;">
+                    <span style="font-family: 'Outfit', sans-serif; font-size: 1.2rem; font-weight: 800; color: {{ border_color }};">
+                      {{ item.prediction.home_pred }} - {{ item.prediction.away_pred }}
+                    </span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Cards -->
+      <div class="d-md-none d-flex flex-column gap-3">
+        {% for item in items %}
+        <div class="card-custom p-3" style="border-left: 4px solid {{ border_color }}; display: flex; justify-content: space-between; align-items: center;">
+          <strong style="font-size: .95rem;">{{ item.participant.name }}</strong>
+          <span style="font-family: 'Outfit', sans-serif; font-size: 1.2rem; font-weight: 800; color: {{ border_color }};">
+            {{ item.prediction.home_pred }} - {{ item.prediction.away_pred }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="text-muted small py-2 px-3 bg-light rounded border">
+        Nadie en esta categoría.
+      </div>
+    {% endif %}
+  </div>
+  {% endmacro %}
+
+  {{ render_section('Resultado Exacto', '🎯', exact_scores, '#10b981') }}
+  {{ render_section('Acertó ganador o empate', '✅', correct_winners, '#f59e0b') }}
+  {{ render_section('Sin puntos', '❌', none_scores, '#ef4444') }}
+
+</div>
+{% endblock %}

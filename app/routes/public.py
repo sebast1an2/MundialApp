@@ -417,3 +417,56 @@ def group_standings(event_id):
     return render_template('public/group_standings.html',
                            event=event,
                            standings_by_group=standings_by_group)
+
+
+# ─── MATCH PREDICTIONS DETAILS ────────────────────────────────────────────────
+
+@public_bp.route('/evento/<int:event_id>/partido/<int:match_id>/aciertos')
+def match_predictions(event_id, match_id):
+    event = Event.query.get_or_404(event_id)
+    match = Match.query.get_or_404(match_id)
+
+    # Gate: feature only available when others' predictions are visible
+    if not event.can_view_others_predictions:
+        flash('La visualización de predicciones no está disponible en este evento.', 'warning')
+        return redirect(url_for('public.event_detail', event_id=event_id))
+
+    # Match must belong to the event
+    if match.phase.event_id != event_id:
+        flash('El partido no pertenece a este evento.', 'danger')
+        return redirect(url_for('public.event_detail', event_id=event_id))
+
+    # Match must be finished
+    if not match.is_finished:
+        flash('El partido aún no ha finalizado.', 'warning')
+        return redirect(url_for('public.event_detail', event_id=event_id))
+
+    # Query all predictions for this match with their corresponding score and participant
+    preds = (db.session.query(Prediction, Participant, Score)
+             .join(Participant, Prediction.participant_id == Participant.id)
+             .outerjoin(Score, (Score.participant_id == Participant.id) & (Score.match_id == match.id))
+             .filter(Prediction.match_id == match.id)
+             .order_by(Participant.name.asc())
+             .all())
+
+    exact_scores = []
+    correct_winners = []
+    none_scores = []
+
+    for pred, participant, score in preds:
+        item = {'participant': participant, 'prediction': pred}
+        score_type = score.score_type if score else 'none'
+        
+        if score_type == 'exact_score':
+            exact_scores.append(item)
+        elif score_type == 'correct_winner':
+            correct_winners.append(item)
+        else:
+            none_scores.append(item)
+
+    return render_template('public/match_predictions.html',
+                           event=event,
+                           match=match,
+                           exact_scores=exact_scores,
+                           correct_winners=correct_winners,
+                           none_scores=none_scores)
