@@ -6,7 +6,7 @@ from app.models import (Team, Event, Group, GroupTeam, Phase,
 from app.routes.auth import require_admin
 from app.services.seeder import seed_teams
 from app.services.scoring import calculate_match_scores, recalculate_all_event_scores
-from app.services.standings import calculate_event_group_standings
+from app.services.standings import calculate_event_group_standings, get_best_third_place_teams
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -156,6 +156,7 @@ def events_edit(event_id):
         event.logo_emoji = request.form.get('logo_emoji', '🏆').strip()
         event.status = request.form.get('status', 'draft')
         event.can_view_others_predictions = bool(request.form.get('can_view_others_predictions'))
+        event.qualifies_third_place = bool(request.form.get('qualifies_third_place'))
 
         def _parse_int_field(name, default=0):
             raw = request.form.get(name, str(default)).strip()
@@ -164,6 +165,7 @@ def events_edit(event_id):
             except (ValueError, TypeError):
                 return default
 
+        event.third_place_slots     = _parse_int_field('third_place_slots', default=0)
         event.participation_fee = _parse_int_field('participation_fee')
         event.prize_first       = _parse_int_field('prize_first')
         event.prize_second      = _parse_int_field('prize_second')
@@ -451,13 +453,21 @@ def get_available_teams_for_phase(event_id, phase):
     
     available_teams = []
     if prev_phase.phase_order == 1 or 'grupo' in prev_phase.name.lower():
-        # From groups
+        # From groups — 1st and 2nd place from every group
         standings = calculate_event_group_standings(event_id)
         qualified_list = []
         for g_obj, g_standings in standings.items():
             for row in g_standings[:2]:
                 qualified_list.append(row['team'])
-        # Unique and sorted
+
+        # Best third-place teams when the event has this feature enabled
+        from app.models import Event as _Event
+        _event = _Event.query.get(event_id)
+        if _event and _event.qualifies_third_place and (_event.third_place_slots or 0) > 0:
+            best_thirds = get_best_third_place_teams(event_id, _event.third_place_slots)
+            qualified_list.extend(best_thirds)
+
+        # Unique and sorted alphabetically
         team_ids = list(set([t.id for t in qualified_list]))
         available_teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
     else:

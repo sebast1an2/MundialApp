@@ -40,6 +40,9 @@ class Event(db.Model):
     logo_emoji = db.Column(db.String(10), default='🏆')
     status = db.Column(db.String(20), default='draft')   # draft | active | finished
     can_view_others_predictions = db.Column(db.Boolean, default=True)
+    # Clasificación de mejores terceros lugares
+    qualifies_third_place = db.Column(db.Boolean, default=False)   # ¿Clasifican terceros?
+    third_place_slots     = db.Column(db.Integer, default=0)        # Cuántos terceros clasifican
     participation_fee = db.Column(db.Numeric(12, 2), nullable=True, default=0)  # valor de participación en moneda local
     # Prize configuration
     prize_first  = db.Column(db.Numeric(12, 2), nullable=True, default=0)   # Premio 1er lugar

@@ -39,9 +39,16 @@
               </thead>
               <tbody>
                 {% for row in standings %}
-                <tr class="{% if loop.index <= 2 %}standings-row-q{% else %}standings-row-out{% endif %}">
+                {# Determinar si esta fila es clasificatoria #}
+                {% set is_q1_2 = loop.index <= 2 %}
+                {% set is_q3  = event.qualifies_third_place and loop.index == 3 %}
+                <tr class="{% if is_q1_2 %}standings-row-q{% elif is_q3 %}standings-row-q3{% else %}standings-row-out{% endif %}"
+                    {% if is_q3 %}style="background: rgba(255,193,7,.12);"{% endif %}>
                   <td>
-                    <span style="font-weight: 700; color: {% if loop.index <= 2 %}var(--green-field){% else %}var(--text-muted){% endif %};">
+                    <span style="font-weight: 700; color:
+                      {% if is_q1_2 %}var(--green-field)
+                      {% elif is_q3 %}#b8860b
+                      {% else %}var(--text-muted){% endif %};">
                       {{ loop.index }}
                     </span>
                   </td>
@@ -62,7 +69,8 @@
                   </td>
                   <td style="text-align:center;">
                     <strong style="font-family: 'Outfit', sans-serif; font-size: 1rem;
-                        {% if loop.index <= 2 %}color: var(--primary);{% endif %}">
+                        {% if is_q1_2 %}color: var(--primary);
+                        {% elif is_q3 %}color: #b8860b;{% endif %}">
                       {{ row.pts }}
                     </strong>
                   </td>
@@ -73,10 +81,16 @@
           </div>
           {% if standings|length >= 2 %}
           <div class="px-3 py-2" style="background: rgba(45,106,79,.05); border-top: 1px solid var(--border);">
-            <small style="font-size: .72rem; color: var(--green-field);">
+            <small style="font-size: .72rem; color: var(--green-field); display: block;">
               <span style="background: var(--green-field); border-radius: 2px; width: 10px; height: 10px; display: inline-block; margin-right: 4px;"></span>
               Clasifican a la siguiente ronda (1° y 2°)
             </small>
+            {% if event.qualifies_third_place and standings|length >= 3 %}
+            <small style="font-size: .72rem; color: #b8860b; display: block; margin-top: 3px;">
+              <span style="background: #ffc107; border-radius: 2px; width: 10px; height: 10px; display: inline-block; margin-right: 4px;"></span>
+              Puede clasificar como mejor 3° ({{ event.third_place_slots }} cupos entre todos los grupos)
+            </small>
+            {% endif %}
           </div>
           {% endif %}
         </div>

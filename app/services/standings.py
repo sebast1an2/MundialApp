@@ -64,6 +64,38 @@ def calculate_event_group_standings(event_id):
     return result
 
 
+def get_best_third_place_teams(event_id, slots):
+    """
+    Returns a list of Team objects corresponding to the best third-place finishers
+    across all groups of the event, capped at `slots` teams.
+
+    Ordering uses exactly the same criteria as calculate_group_standings:
+      PTS desc → DIF desc → GF desc
+
+    Returns an empty list if slots <= 0 or no group has at least 3 teams with results.
+    """
+    if not slots or slots <= 0:
+        return []
+
+    standings_by_group = calculate_event_group_standings(event_id)
+
+    # Collect the third-place row from every group that has one
+    third_place_rows = []
+    for _group, standings in standings_by_group.items():
+        if len(standings) >= 3:
+            third_place_rows.append(standings[2])  # index 2 = 3rd place
+
+    if not third_place_rows:
+        return []
+
+    # Sort with the same key used in calculate_group_standings
+    third_place_rows.sort(key=lambda x: (-x['pts'], -x['dif'], -x['gf']))
+
+    # Return Team objects for the top `slots` third-place teams
+    return [row['team'] for row in third_place_rows[:slots]]
+
+
+
 def calculate_top_scoring_teams(event_id, limit=5):
     """Returns a list of teams with most goals in the event across all phases."""
     from app.models import Phase, Match

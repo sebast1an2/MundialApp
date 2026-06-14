@@ -58,6 +58,46 @@
         </div>
       </div>
 
+      {# ── Clasificación de Terceros ─────────────────────────────── #}
+      <div class="mb-3" style="background: rgba(255,193,7,.07); border: 1.5px solid rgba(255,193,7,.35); border-radius: var(--radius-sm); padding: 1rem 1.1rem;">
+        <div class="form-label-custom mb-2" style="font-size:.85rem; color: #b8860b;">
+          🥉 Clasificación de Mejores Terceros Lugares
+        </div>
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" name="qualifies_third_place"
+                 id="qualifies_third_place"
+                 {% if event.qualifies_third_place %}checked{% endif %}
+                 onchange="toggleThirdSlots(this)">
+          <label class="form-check-label" for="qualifies_third_place">
+            Clasifican equipos en tercer lugar de grupos
+          </label>
+        </div>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+          <div>
+            <label class="form-label-custom" style="font-size:.8rem;" for="third_place_slots">
+              Cantidad de terceros que clasifican
+            </label>
+            <input type="number" name="third_place_slots" id="third_place_slots"
+                   class="form-control-custom" min="0" max="99" step="1"
+                   style="max-width: 120px;"
+                   value="{{ event.third_place_slots or 0 }}"
+                   {% if not event.qualifies_third_place %}disabled{% endif %}>
+          </div>
+          <small class="text-muted" style="font-size: .75rem; max-width: 280px;">
+            Ejemplos: <strong>Mundial 2026</strong> → 8 terceros · <strong>Torneo normal</strong> → 0
+          </small>
+        </div>
+      </div>
+
+      <script>
+        function toggleThirdSlots(checkbox) {
+          var input = document.getElementById('third_place_slots');
+          input.disabled = !checkbox.checked;
+          if (!checkbox.checked) { input.value = 0; }
+        }
+      </script>
+
+
       {# ── Premios y Pagos ─────────────────────────────────────── #}
       <div class="mt-4 mb-2" style="border-top: 2px solid var(--border); padding-top: 1.25rem;">
         <div class="form-label-custom mb-3" style="font-size:.9rem; color: var(--primary);">🏆 Premios &amp; Pagos — Configuración de la ventana informativa</div>
