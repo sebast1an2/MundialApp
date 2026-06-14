@@ -103,7 +103,7 @@
   {% block content %}{% endblock %}
 
   <!-- ── Floating Action Button (Mobile) ──────────────────── -->
-  {% if event and not session.get('is_admin') %}
+  {% if event and not session.get('is_admin') and session.get('participant_event_' ~ event.id) %}
   <div class="fab-wrapper" id="fabWrapper">
     <div class="fab-menu" id="fabMenu">
       {% if participant %}
