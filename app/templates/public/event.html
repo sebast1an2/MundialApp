@@ -116,7 +116,120 @@
         </div>
       </div>
 
+      {# ── Partidos del Día ─────────────────────────────────────── #}
+      <div class="card-custom mb-4" id="section-hoy" style="border-left: 4px solid var(--accent);">
+        <div class="card-header-custom d-flex align-items-center justify-content-between">
+          <span><i class="bi bi-calendar2-event me-2"></i>Partidos de Hoy</span>
+          <span style="font-size: .78rem; opacity: .7; font-weight: 400;">
+            {{ now.strftime('%d/%m/%Y') }}
+          </span>
+        </div>
+
+        {% if today_matches %}
+          <div class="p-0">
+            {% for match in today_matches %}
+              {# ── Determinar estado del partido ── #}
+              {% if match.is_finished %}
+                {% set estado = 'finalizado' %}
+              {% elif match.match_date and match.match_date <= now %}
+                {% set estado = 'en_juego' %}
+              {% else %}
+                {% set estado = 'proximo' %}
+              {% endif %}
+
+              <div class="d-flex align-items-center gap-2 px-3 py-2"
+                   style="border-bottom: 1px solid var(--border);">
+
+                {# Hora #}
+                <div class="flex-shrink-0 text-center"
+                     style="width: 42px;">
+                  <span style="font-family: 'Outfit', sans-serif; font-size: .85rem; font-weight: 800; color: var(--primary);">
+                    {{ match.match_date.strftime('%H:%M') if match.match_date else '--:--' }}
+                  </span>
+                </div>
+
+                {# Separador vertical #}
+                <div style="width: 1px; background: var(--border); align-self: stretch; flex-shrink: 0;"></div>
+
+                {# Equipos #}
+                <div style="flex: 1; min-width: 0;">
+                  <div class="d-flex align-items-center gap-1 mb-1">
+                    <span style="font-size: 1rem;">{{ match.home_team.flag_emoji }}</span>
+                    <span style="font-size: .85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      {{ match.home_team.short_name or match.home_team.name }}
+                    </span>
+                  </div>
+                  <div class="d-flex align-items-center gap-1">
+                    <span style="font-size: 1rem;">{{ match.away_team.flag_emoji }}</span>
+                    <span style="font-size: .85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                      {{ match.away_team.short_name or match.away_team.name }}
+                    </span>
+                  </div>
+                  <div class="mt-1">
+                    <span style="font-size: .65rem; color: var(--text-muted); font-weight: 500;">
+                      {{ match.phase.name }}{% if match.match_label %} · {{ match.match_label }}{% endif %}
+                    </span>
+                  </div>
+                </div>
+
+                {# Marcador o estado #}
+                <div class="flex-shrink-0 text-center" style="min-width: 70px;">
+                  {% if estado == 'finalizado' %}
+                    <div class="bg-dark text-white rounded px-2 py-1 fw-bold text-center"
+                         style="font-family: 'Outfit', sans-serif; font-size: 1rem; letter-spacing: 1px; margin-bottom: 3px;">
+                      {{ match.home_score }} - {{ match.away_score }}
+                    </div>
+                    <span class="badge bg-success-subtle text-success border-0" style="font-size: .6rem; font-weight: 700;">Finalizado</span>
+                    {% if event.can_view_others_predictions %}
+                      <div class="mt-1">
+                        <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}"
+                           style="font-size: .65rem; color: var(--text-muted); text-decoration: none; font-weight: 600;">
+                          Ver aciertos →
+                        </a>
+                      </div>
+                    {% endif %}
+                  {% elif estado == 'en_juego' %}
+                    <div class="rounded px-2 py-1 text-center mb-1"
+                         style="background: #fff7ed; border: 1.5px solid #fb923c;">
+                      <span style="font-size: .7rem; font-weight: 800; color: #c2410c; letter-spacing: .3px;">
+                        ⚽ EN JUEGO
+                      </span>
+                    </div>
+                    {% if event.can_view_others_predictions %}
+                      <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}"
+                         style="font-size: .65rem; color: var(--text-muted); text-decoration: none; font-weight: 600;">
+                        Ver pronósticos →
+                      </a>
+                    {% endif %}
+                  {% else %}
+                    <div class="rounded px-2 py-1 text-center mb-1"
+                         style="background: #eff6ff; border: 1.5px solid #93c5fd;">
+                      <span style="font-size: .7rem; font-weight: 800; color: #1d4ed8;">
+                        Próximo
+                      </span>
+                    </div>
+                    {% if event.can_view_others_predictions %}
+                      <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}"
+                         style="font-size: .65rem; color: var(--text-muted); text-decoration: none; font-weight: 600;">
+                        Ver pronósticos →
+                      </a>
+                    {% endif %}
+                  {% endif %}
+                </div>
+
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="card-body-custom text-center py-4">
+            <span style="font-size: 1.8rem; display: block; margin-bottom: .5rem;">📅</span>
+            <p class="text-muted mb-0 small">No hay partidos programados para hoy.</p>
+          </div>
+        {% endif %}
+      </div>
+
       {# ── Mini Ranking — Mobile ONLY (d-lg-none) — priority after progress ── #}
+
       {% if event.can_view_others_predictions %}
       <div class="card-custom mb-4 d-lg-none">
         <div class="card-header-custom d-flex justify-content-between align-items-center">
@@ -224,12 +337,17 @@
                   {% if match.is_finished %}
                     <span class="badge bg-success-subtle text-success border-0">Finalizado</span>
                     {% if event.can_view_others_predictions %}
-                      <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}" class="btn btn-sm btn-outline-custom" title="Ver detalle de aciertos" style="font-size: .75rem; padding: .15rem .5rem;">
+                      <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}" class="btn btn-sm btn-outline-custom" title="Ver aciertos" style="font-size: .75rem; padding: .15rem .5rem;">
                         <i class="bi bi-bar-chart-fill"></i> Aciertos
                       </a>
                     {% endif %}
                   {% else %}
                     <span class="badge bg-warning-subtle text-warning border-0">Pendiente</span>
+                    {% if event.can_view_others_predictions %}
+                      <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}" class="btn btn-sm" title="Ver pronósticos" style="font-size: .75rem; padding: .15rem .5rem; border: 1.5px solid #3b82f6; color: #2563eb; background: #eff6ff; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: .25rem;">
+                        <i class="bi bi-eye-fill"></i> Pronóstico
+                      </a>
+                    {% endif %}
                   {% endif %}
                 </div>
               </div>

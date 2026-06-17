@@ -59,6 +59,21 @@ def event_detail(event_id):
     # Top scoring teams
     top_teams = calculate_top_scoring_teams(event_id, limit=5)
 
+    # ── Partidos del día ──────────────────────────────────────────
+    from datetime import datetime, timedelta
+    _now = datetime.now()
+    _today_start = _now.replace(hour=0, minute=0, second=0, microsecond=0)
+    _today_end   = _today_start + timedelta(days=1)
+    today_matches = (Match.query.join(Phase)
+                     .filter(
+                         Phase.event_id == event_id,
+                         Match.match_date != None,
+                         Match.match_date >= _today_start,
+                         Match.match_date < _today_end,
+                     )
+                     .order_by(Match.match_date)
+                     .all())
+
     return render_template('public/event.html',
                            event=event,
                            phases=phases,
@@ -69,7 +84,9 @@ def event_detail(event_id):
                            total_participants=total_participants,
                            matches_finished=matches_finished,
                            all_matches=all_matches,
-                           top_teams=top_teams)
+                           top_teams=top_teams,
+                           today_matches=today_matches,
+                           now=_now)
 
 
 # ─── VALIDATE PARTICIPANT (GATEKEEPER) ────────────────────────────────────────
@@ -436,12 +453,19 @@ def match_predictions(event_id, match_id):
         flash('El partido no pertenece a este evento.', 'danger')
         return redirect(url_for('public.event_detail', event_id=event_id))
 
-    # Match must be finished
-    if not match.is_finished:
-        flash('El partido aún no ha finalizado.', 'warning')
-        return redirect(url_for('public.event_detail', event_id=event_id))
+    # Identify the logged-in participant (may be None if no session)
+    current_participant_id = session.get(f'participant_event_{event_id}')
+    current_participant = Participant.query.get(current_participant_id) if current_participant_id else None
 
-    # Query all predictions for this match with their corresponding score and participant
+    # Get this participant's own prediction for the match (used in both scenarios)
+    my_prediction = None
+    if current_participant:
+        my_prediction = Prediction.query.filter_by(
+            participant_id=current_participant.id,
+            match_id=match_id
+        ).first()
+
+    # Query ALL predictions for this match, ordered alphabetically by participant name
     preds = (db.session.query(Prediction, Participant, Score)
              .join(Participant, Prediction.participant_id == Participant.id)
              .outerjoin(Score, (Score.participant_id == Participant.id) & (Score.match_id == match.id))
@@ -449,24 +473,34 @@ def match_predictions(event_id, match_id):
              .order_by(Participant.name.asc())
              .all())
 
+    # Flat list for pre-result scenario
+    all_predictions = [
+        {'participant': participant, 'prediction': pred}
+        for pred, participant, score in preds
+    ]
+
+    # Classified lists for post-result scenario
     exact_scores = []
     correct_winners = []
     none_scores = []
 
-    for pred, participant, score in preds:
-        item = {'participant': participant, 'prediction': pred}
-        score_type = score.score_type if score else 'none'
-        
-        if score_type == 'exact_score':
-            exact_scores.append(item)
-        elif score_type == 'correct_winner':
-            correct_winners.append(item)
-        else:
-            none_scores.append(item)
+    if match.is_finished:
+        for pred, participant, score in preds:
+            item = {'participant': participant, 'prediction': pred}
+            score_type = score.score_type if score else 'none'
+            if score_type == 'exact_score':
+                exact_scores.append(item)
+            elif score_type == 'correct_winner':
+                correct_winners.append(item)
+            else:
+                none_scores.append(item)
 
     return render_template('public/match_predictions.html',
                            event=event,
                            match=match,
+                           current_participant=current_participant,
+                           my_prediction=my_prediction,
+                           all_predictions=all_predictions,
                            exact_scores=exact_scores,
                            correct_winners=correct_winners,
                            none_scores=none_scores)

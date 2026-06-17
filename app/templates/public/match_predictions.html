@@ -1,97 +1,246 @@
 {% extends 'base.html' %}
-{% block title %}Detalle de Aciertos — {{ match.home_team.name }} vs {{ match.away_team.name }}{% endblock %}
+{% block title %}
+  {% if match.is_finished %}Aciertos{% else %}Pronósticos{% endif %} — {{ match.home_team.name }} vs {{ match.away_team.name }}
+{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-  <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-    <div>
-      <a href="{{ url_for('public.event_detail', event_id=event.id) }}#section-resultados" class="text-muted small text-decoration-none">
-        <i class="bi bi-arrow-left me-1"></i>{{ event.name }}
-      </a>
-      <h1 style="font-size: 1.8rem; margin: .25rem 0 0;">
-        📊 Detalle de Aciertos
-      </h1>
-    </div>
-    <span style="color: var(--text-muted); font-size: .9rem;">{{ match.phase.name }} &bull; {{ match.match_date.strftime('%d/%m %H:%M') if match.match_date else 'S/D' }}</span>
+
+  {# ── Breadcrumb + Título ── #}
+  <div class="mb-3">
+    <a href="{{ url_for('public.event_detail', event_id=event.id) }}#section-resultados"
+       class="text-muted small text-decoration-none d-inline-flex align-items-center gap-1 mb-2">
+      <i class="bi bi-arrow-left"></i> {{ event.name }}
+    </a>
+    <h1 style="font-size: clamp(1.3rem, 4vw, 1.8rem); margin: 0; font-family: 'Outfit', sans-serif; font-weight: 800;">
+      {% if match.is_finished %}
+        📊 Aciertos
+      {% else %}
+        👁 Pronósticos
+      {% endif %}
+    </h1>
+    <span class="text-muted small">
+      {{ match.phase.name }}
+      {% if match.match_label %} &bull; {{ match.match_label }}{% endif %}
+    </span>
   </div>
 
-  <!-- Match Info -->
-  <div class="card-custom mb-5" style="border-left: 4px solid var(--primary);">
-    <div class="card-body-custom">
-      <div class="d-flex align-items-center justify-content-center gap-4 flex-wrap">
-        <div class="text-end">
-          <span style="font-size: 1.5rem;" class="me-2">{{ match.home_team.flag_emoji }}</span>
-          <span class="fw-bold" style="font-size: 1.2rem;">{{ match.home_team.name }}</span>
+  {# ── Encabezado del partido ── #}
+  <div class="card-custom mb-3" style="border-left: 4px solid var(--primary);">
+    <div class="card-body-custom py-3">
+      {# Fecha/hora si está disponible #}
+      {% if match.match_date %}
+        <div class="text-center mb-2">
+          <span class="badge bg-light text-dark border" style="font-size: .75rem; font-weight: 600;">
+            <i class="bi bi-calendar3 me-1"></i>{{ match.match_date.strftime('%d/%m/%Y') }}
+            &nbsp;<i class="bi bi-clock me-1"></i>{{ match.match_date.strftime('%H:%M') }}
+          </span>
         </div>
-        <div class="bg-dark text-white rounded px-3 py-2 fw-bold" style="font-size: 1.5rem; letter-spacing: 2px;">
-          {{ match.home_score }} - {{ match.away_score }}
+      {% endif %}
+
+      {# Equipos #}
+      <div class="d-flex align-items-center justify-content-center gap-2 flex-nowrap">
+        <div class="text-end" style="flex: 1; min-width: 0;">
+          <span style="font-size: clamp(1.1rem, 4vw, 1.5rem);">{{ match.home_team.flag_emoji }}</span>
+          <span class="fw-bold d-block" style="font-size: clamp(.8rem, 3vw, 1.1rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            {{ match.home_team.name }}
+          </span>
         </div>
-        <div class="text-start">
-          <span class="fw-bold" style="font-size: 1.2rem;">{{ match.away_team.name }}</span>
-          <span style="font-size: 1.5rem;" class="ms-2">{{ match.away_team.flag_emoji }}</span>
+
+        <div class="flex-shrink-0 px-2">
+          {% if match.is_finished %}
+            <div class="bg-dark text-white rounded px-3 py-2 fw-bold text-center"
+                 style="font-size: clamp(1.2rem, 5vw, 1.6rem); letter-spacing: 2px; min-width: 80px;">
+              {{ match.home_score }} - {{ match.away_score }}
+            </div>
+            <div class="text-center mt-1">
+              <span class="badge bg-success-subtle text-success border-0" style="font-size: .65rem; font-weight: 700;">RESULTADO OFICIAL</span>
+            </div>
+          {% else %}
+            <div class="bg-light border rounded px-3 py-2 text-muted text-center fw-bold"
+                 style="font-size: 1rem; min-width: 64px; letter-spacing: 1px;">
+              VS
+            </div>
+            <div class="text-center mt-1">
+              <span class="badge bg-warning-subtle text-warning border-0" style="font-size: .65rem; font-weight: 700;">SIN RESULTADO</span>
+            </div>
+          {% endif %}
+        </div>
+
+        <div class="text-start" style="flex: 1; min-width: 0;">
+          <span style="font-size: clamp(1.1rem, 4vw, 1.5rem);">{{ match.away_team.flag_emoji }}</span>
+          <span class="fw-bold d-block" style="font-size: clamp(.8rem, 3vw, 1.1rem); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            {{ match.away_team.name }}
+          </span>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- MACRO for rendering sections -->
-  {% macro render_section(title, icon, items, border_color) %}
-  <div class="mb-5">
-    <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem; color: var(--text-main);">
-      {{ icon }} {{ title }} ({{ items|length }})
-    </h3>
-    
-    {% if items %}
-      <!-- Desktop Table -->
-      <div class="card-custom d-none d-md-block" style="border-left: 4px solid {{ border_color }};">
-        <div class="card-body-custom p-0">
-          <div class="table-responsive">
-            <table class="table-custom">
-              <thead>
-                <tr>
-                  <th style="padding-left: 1.5rem;">Participante</th>
-                  <th style="text-align: right; padding-right: 1.5rem;">Predicción</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for item in items %}
-                <tr>
-                  <td style="padding-left: 1.5rem;"><strong style="font-size: .95rem;">{{ item.participant.name }}</strong></td>
-                  <td style="text-align: right; padding-right: 1.5rem;">
-                    <span style="font-family: 'Outfit', sans-serif; font-size: 1.2rem; font-weight: 800; color: {{ border_color }};">
-                      {{ item.prediction.home_pred }} - {{ item.prediction.away_pred }}
-                    </span>
-                  </td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+  {# ── Mi Pronóstico ── #}
+  {% if current_participant and my_prediction %}
+    <div class="card-custom mb-3" style="border-left: 4px solid var(--gold); background: linear-gradient(135deg, #fffbeb 0%, #fff 100%);">
+      <div class="card-body-custom py-3">
+        <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+          <div class="d-flex align-items-center gap-2">
+            <div style="width: 34px; height: 34px; background: var(--primary); color: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: .9rem; flex-shrink: 0;">
+              {{ current_participant.name[0] | upper }}
+            </div>
+            <div>
+              <div style="font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted);">Mi Pronóstico</div>
+              <div style="font-size: .85rem; font-weight: 600; color: var(--text);">{{ current_participant.name }}</div>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2 flex-shrink-0">
+            <span style="font-size: .8rem; color: var(--text-muted);">{{ match.home_team.flag_emoji }}</span>
+            <span style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--primary); letter-spacing: 1px;">
+              {{ my_prediction.home_pred }} - {{ my_prediction.away_pred }}
+            </span>
+            <span style="font-size: .8rem; color: var(--text-muted);">{{ match.away_team.flag_emoji }}</span>
+            {% if match.is_finished %}
+              {# Badge de resultado propio #}
+              {% set pred_result = my_prediction.get_pred_result() %}
+              {% set real_result = match.get_result() %}
+              {% if my_prediction.home_pred == match.home_score and my_prediction.away_pred == match.away_score %}
+                <span class="badge-exact ms-1">🎯 Exacto</span>
+              {% elif pred_result == real_result %}
+                <span class="badge-winner ms-1">✅ Ganador</span>
+              {% else %}
+                <span class="badge-none ms-1">❌ Sin pts</span>
+              {% endif %}
+            {% endif %}
           </div>
         </div>
       </div>
+    </div>
+  {% elif current_participant and not my_prediction %}
+    <div class="alert alert-secondary d-flex align-items-center gap-2 mb-3 py-2 px-3" style="font-size: .85rem; border-radius: 8px;">
+      <i class="bi bi-info-circle-fill"></i>
+      No realizaste un pronóstico para este partido.
+    </div>
+  {% endif %}
 
-      <!-- Mobile Cards -->
-      <div class="d-md-none d-flex flex-column gap-3">
-        {% for item in items %}
-        <div class="card-custom p-3" style="border-left: 4px solid {{ border_color }}; display: flex; justify-content: space-between; align-items: center;">
-          <strong style="font-size: .95rem;">{{ item.participant.name }}</strong>
-          <span style="font-family: 'Outfit', sans-serif; font-size: 1.2rem; font-weight: 800; color: {{ border_color }};">
-            {{ item.prediction.home_pred }} - {{ item.prediction.away_pred }}
-          </span>
+  {# ═══════════════════════════════════════════════════
+     ESCENARIO 1 — PARTIDO SIN RESULTADO
+     ═══════════════════════════════════════════════════ #}
+  {% if not match.is_finished %}
+
+    <div class="card-custom overflow-hidden">
+      <div class="card-header-custom d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-people-fill me-2"></i>Pronósticos registrados</span>
+        <span style="font-size: .8rem; opacity: .7; font-weight: 400;">{{ all_predictions | length }} participante{{ 's' if all_predictions | length != 1 else '' }}</span>
+      </div>
+
+      {% if all_predictions %}
+        <div class="card-body-custom p-0">
+          {% for item in all_predictions %}
+            <div class="d-flex align-items-center px-3 gap-3
+                        {% if current_participant and item.participant.id == current_participant.id %}
+                          bg-warning-subtle
+                        {% endif %}"
+                 style="padding-top: .6rem; padding-bottom: .6rem; border-bottom: 1px solid var(--border);">
+
+              {# Número de orden #}
+              <div style="width: 24px; font-size: .72rem; color: var(--text-muted); font-weight: 700; text-align: right; flex-shrink: 0;">
+                {{ loop.index }}
+              </div>
+
+              {# Nombre #}
+              <div style="flex: 1; min-width: 0;">
+                <span style="font-size: .9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">
+                  {{ item.participant.name }}
+                </span>
+                {% if current_participant and item.participant.id == current_participant.id %}
+                  <span style="font-size: .6rem; font-weight: 800; text-transform: uppercase; color: #92400e; background: #fef3c7; padding: .1rem .35rem; border-radius: 4px;">TÚ</span>
+                {% endif %}
+              </div>
+
+              {# Pronóstico #}
+              <div class="flex-shrink-0 text-end">
+                <span style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 800; color: var(--primary-soft); letter-spacing: .5px;">
+                  {{ item.prediction.home_pred }} - {{ item.prediction.away_pred }}
+                </span>
+              </div>
+            </div>
+          {% endfor %}
         </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="text-muted small py-2 px-3 bg-light rounded border">
-        Nadie en esta categoría.
-      </div>
-    {% endif %}
-  </div>
-  {% endmacro %}
+      {% else %}
+        <div class="card-body-custom text-center py-5 text-muted">
+          <i class="bi bi-person-x mb-2" style="font-size: 2rem; display: block;"></i>
+          Aún no hay pronósticos registrados para este partido.
+        </div>
+      {% endif %}
+    </div>
 
-  {{ render_section('Resultado Exacto', '🎯', exact_scores, '#10b981') }}
-  {{ render_section('Acertó ganador o empate', '✅', correct_winners, '#f59e0b') }}
-  {{ render_section('Sin puntos', '❌', none_scores, '#ef4444') }}
+  {# ═══════════════════════════════════════════════════
+     ESCENARIO 2 — PARTIDO CON RESULTADO
+     ═══════════════════════════════════════════════════ #}
+  {% else %}
+
+    {# Macro de sección reutilizable #}
+    {% macro render_section(title, icon, items, header_color, score_color) %}
+    <div class="card-custom overflow-hidden mb-3">
+      <div class="d-flex align-items-center justify-content-between px-3 py-2"
+           style="background: {{ header_color }}; border-bottom: 1px solid var(--border);">
+        <span style="font-family: 'Outfit', sans-serif; font-weight: 700; font-size: .95rem;">
+          {{ icon }} {{ title }}
+        </span>
+        <span style="font-size: .8rem; font-weight: 600; opacity: .75;">
+          {{ items | length }}
+        </span>
+      </div>
+
+      {% if items %}
+        <div class="p-0">
+          {% for item in items %}
+            <div class="d-flex align-items-center px-3 gap-3
+                        {% if current_participant and item.participant.id == current_participant.id %}
+                          bg-warning-subtle
+                        {% endif %}"
+                 style="padding-top: .6rem; padding-bottom: .6rem; border-bottom: 1px solid var(--border);">
+
+              <div style="width: 24px; font-size: .72rem; color: var(--text-muted); font-weight: 700; text-align: right; flex-shrink: 0;">
+                {{ loop.index }}
+              </div>
+
+              <div style="flex: 1; min-width: 0;">
+                <span style="font-size: .9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">
+                  {{ item.participant.name }}
+                </span>
+                {% if current_participant and item.participant.id == current_participant.id %}
+                  <span style="font-size: .6rem; font-weight: 800; text-transform: uppercase; color: #92400e; background: #fef3c7; padding: .1rem .35rem; border-radius: 4px;">TÚ</span>
+                {% endif %}
+              </div>
+
+              <div class="flex-shrink-0 text-end">
+                <span style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 800; color: {{ score_color }}; letter-spacing: .5px;">
+                  {{ item.prediction.home_pred }} - {{ item.prediction.away_pred }}
+                </span>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="text-center py-3 text-muted" style="font-size: .85rem;">
+          Nadie en esta categoría.
+        </div>
+      {% endif %}
+    </div>
+    {% endmacro %}
+
+    {{ render_section('Resultado Exacto', '🎯', exact_scores, '#d1fae5', '#065f46') }}
+    {{ render_section('Acertó Ganador', '✅', correct_winners, '#fef3c7', '#92400e') }}
+    {{ render_section('Sin Acierto', '❌', none_scores, '#fee2e2', '#991b1b') }}
+
+  {% endif %}
+
+  {# ── Totales de participantes #}
+  <div class="text-center mt-3 mb-2">
+    <span class="text-muted small">
+      <i class="bi bi-people me-1"></i>
+      {{ all_predictions | length }} pronóstico{{ 's' if all_predictions | length != 1 else '' }} en total
+    </span>
+  </div>
 
 </div>
 {% endblock %}
