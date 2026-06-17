@@ -465,13 +465,20 @@ def match_predictions(event_id, match_id):
             match_id=match_id
         ).first()
 
-    # Query ALL predictions for this match, ordered alphabetically by participant name
+    # Query ALL predictions for this match, ordered by global ranking (total_points desc)
     preds = (db.session.query(Prediction, Participant, Score)
              .join(Participant, Prediction.participant_id == Participant.id)
              .outerjoin(Score, (Score.participant_id == Participant.id) & (Score.match_id == match.id))
              .filter(Prediction.match_id == match.id)
-             .order_by(Participant.name.asc())
+             .order_by(Participant.total_points.desc(), Participant.created_at.asc())
              .all())
+
+    # Build global ranking map for the entire event (position → participant_id)
+    ranked_all = (Participant.query
+                  .filter_by(event_id=event_id)
+                  .order_by(Participant.total_points.desc(), Participant.created_at.asc())
+                  .all())
+    rank_map = {p.id: i + 1 for i, p in enumerate(ranked_all)}
 
     # Flat list for pre-result scenario
     all_predictions = [
@@ -503,4 +510,5 @@ def match_predictions(event_id, match_id):
                            all_predictions=all_predictions,
                            exact_scores=exact_scores,
                            correct_winners=correct_winners,
-                           none_scores=none_scores)
+                           none_scores=none_scores,
+                           rank_map=rank_map)

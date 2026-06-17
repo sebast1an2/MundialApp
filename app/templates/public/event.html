@@ -172,48 +172,39 @@
                   </div>
                 </div>
 
-                {# Marcador o estado #}
-                <div class="flex-shrink-0 text-center" style="min-width: 70px;">
+                {# Acción y estado #}
+                <div class="flex-shrink-0 text-center d-flex flex-column align-items-center gap-1" style="min-width: 76px;">
                   {% if estado == 'finalizado' %}
-                    <div class="bg-dark text-white rounded px-2 py-1 fw-bold text-center"
-                         style="font-family: 'Outfit', sans-serif; font-size: 1rem; letter-spacing: 1px; margin-bottom: 3px;">
+                    {% if event.can_view_others_predictions %}
+                      <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}"
+                         title="Ver aciertos"
+                         style="font-size: .72rem; padding: .28rem .6rem; background: var(--primary); color: #fff; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: .25rem; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(13,27,42,.2);">
+                        <i class="bi bi-bar-chart-fill"></i> Aciertos
+                      </a>
+                    {% endif %}
+                    <div class="fw-bold text-center"
+                         style="font-family: 'Outfit', sans-serif; font-size: .9rem; letter-spacing: 1px; color: var(--primary);">
                       {{ match.home_score }} - {{ match.away_score }}
                     </div>
-                    <span class="badge bg-success-subtle text-success border-0" style="font-size: .6rem; font-weight: 700;">Finalizado</span>
-                    {% if event.can_view_others_predictions %}
-                      <div class="mt-1">
-                        <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}"
-                           style="font-size: .65rem; color: var(--text-muted); text-decoration: none; font-weight: 600;">
-                          Ver aciertos →
-                        </a>
-                      </div>
-                    {% endif %}
+                    <span class="badge bg-success-subtle text-success border-0" style="font-size: .58rem; font-weight: 600; padding: .12rem .35rem;">Finalizado</span>
                   {% elif estado == 'en_juego' %}
-                    <div class="rounded px-2 py-1 text-center mb-1"
-                         style="background: #fff7ed; border: 1.5px solid #fb923c;">
-                      <span style="font-size: .7rem; font-weight: 800; color: #c2410c; letter-spacing: .3px;">
-                        ⚽ EN JUEGO
-                      </span>
-                    </div>
                     {% if event.can_view_others_predictions %}
                       <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}"
-                         style="font-size: .65rem; color: var(--text-muted); text-decoration: none; font-weight: 600;">
-                        Ver pronósticos →
+                         title="Ver pronósticos"
+                         style="font-size: .72rem; padding: .28rem .6rem; background: var(--primary); color: #fff; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: .25rem; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(13,27,42,.2);">
+                        <i class="bi bi-graph-up"></i> Pronóstico
                       </a>
                     {% endif %}
+                    <span style="font-size: .62rem; font-weight: 800; color: #c2410c; background: #fff7ed; border: 1px solid #fb923c; border-radius: 4px; padding: .1rem .4rem;">⚽ EN JUEGO</span>
                   {% else %}
-                    <div class="rounded px-2 py-1 text-center mb-1"
-                         style="background: #eff6ff; border: 1.5px solid #93c5fd;">
-                      <span style="font-size: .7rem; font-weight: 800; color: #1d4ed8;">
-                        Próximo
-                      </span>
-                    </div>
                     {% if event.can_view_others_predictions %}
                       <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}"
-                         style="font-size: .65rem; color: var(--text-muted); text-decoration: none; font-weight: 600;">
-                        Ver pronósticos →
+                         title="Ver pronósticos"
+                         style="font-size: .72rem; padding: .28rem .6rem; background: var(--primary); color: #fff; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: .25rem; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(13,27,42,.2);">
+                        <i class="bi bi-graph-up"></i> Pronóstico
                       </a>
                     {% endif %}
+                    <span class="badge bg-warning-subtle text-warning border-0" style="font-size: .58rem; font-weight: 600; padding: .12rem .35rem;">Próximo</span>
                   {% endif %}
                 </div>
 
@@ -333,21 +324,25 @@
                     <span class="fw-bold small">{{ match.away_team.name }}</span>
                   </div>
                 </div>
-                <div class="d-flex flex-column align-items-end gap-2" style="min-width: 80px;">
+                <div class="d-flex flex-column align-items-end gap-1" style="min-width: 80px;">
                   {% if match.is_finished %}
-                    <span class="badge bg-success-subtle text-success border-0">Finalizado</span>
                     {% if event.can_view_others_predictions %}
-                      <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}" class="btn btn-sm btn-outline-custom" title="Ver aciertos" style="font-size: .75rem; padding: .15rem .5rem;">
+                      <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}"
+                         title="Ver aciertos"
+                         style="font-size: .75rem; padding: .3rem .65rem; background: var(--primary); color: #fff; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: .3rem; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(13,27,42,.2);">
                         <i class="bi bi-bar-chart-fill"></i> Aciertos
                       </a>
                     {% endif %}
+                    <span class="badge bg-success-subtle text-success border-0" style="font-size: .6rem; font-weight: 600; padding: .15rem .4rem;">Finalizado</span>
                   {% else %}
-                    <span class="badge bg-warning-subtle text-warning border-0">Pendiente</span>
                     {% if event.can_view_others_predictions %}
-                      <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}" class="btn btn-sm" title="Ver pronósticos" style="font-size: .75rem; padding: .15rem .5rem; border: 1.5px solid #3b82f6; color: #2563eb; background: #eff6ff; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: .25rem;">
-                        <i class="bi bi-eye-fill"></i> Pronóstico
+                      <a href="{{ url_for('public.match_predictions', event_id=event.id, match_id=match.id) }}"
+                         title="Ver pronósticos"
+                         style="font-size: .75rem; padding: .3rem .65rem; background: var(--primary); color: #fff; border-radius: 6px; text-decoration: none; display: inline-flex; align-items: center; gap: .3rem; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(13,27,42,.2);">
+                        <i class="bi bi-graph-up"></i> Pronóstico
                       </a>
                     {% endif %}
+                    <span class="badge bg-warning-subtle text-warning border-0" style="font-size: .6rem; font-weight: 600; padding: .15rem .4rem;">Pendiente</span>
                   {% endif %}
                 </div>
               </div>

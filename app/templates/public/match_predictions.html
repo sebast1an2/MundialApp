@@ -88,7 +88,12 @@
             </div>
             <div>
               <div style="font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--text-muted);">Mi Pronóstico</div>
-              <div style="font-size: .85rem; font-weight: 600; color: var(--text);">{{ current_participant.name }}</div>
+              <div style="font-size: .85rem; font-weight: 600; color: var(--text);">
+                {% if rank_map and rank_map.get(current_participant.id) %}
+                  <span style="font-size: .7rem; font-weight: 800; color: var(--primary); margin-right: .2rem;">#{{ rank_map[current_participant.id] }}</span>
+                {% endif %}
+                {{ current_participant.name }}
+              </div>
             </div>
           </div>
           <div class="d-flex align-items-center gap-2 flex-shrink-0">
@@ -140,9 +145,13 @@
                         {% endif %}"
                  style="padding-top: .6rem; padding-bottom: .6rem; border-bottom: 1px solid var(--border);">
 
-              {# Número de orden #}
-              <div style="width: 24px; font-size: .72rem; color: var(--text-muted); font-weight: 700; text-align: right; flex-shrink: 0;">
-                {{ loop.index }}
+              {# Posición global de ranking #}
+              <div style="width: 28px; font-size: .72rem; color: var(--text-muted); font-weight: 800; text-align: right; flex-shrink: 0; font-family: 'Outfit', sans-serif;">
+                {% if rank_map and rank_map.get(item.participant.id) %}
+                  #{{ rank_map[item.participant.id] }}
+                {% else %}
+                  —
+                {% endif %}
               </div>
 
               {# Nombre #}
@@ -199,8 +208,13 @@
                         {% endif %}"
                  style="padding-top: .6rem; padding-bottom: .6rem; border-bottom: 1px solid var(--border);">
 
-              <div style="width: 24px; font-size: .72rem; color: var(--text-muted); font-weight: 700; text-align: right; flex-shrink: 0;">
-                {{ loop.index }}
+              {# Posición global de ranking #}
+              <div style="width: 28px; font-size: .72rem; color: var(--text-muted); font-weight: 800; text-align: right; flex-shrink: 0; font-family: 'Outfit', sans-serif;">
+                {% if rank_map and rank_map.get(item.participant.id) %}
+                  #{{ rank_map[item.participant.id] }}
+                {% else %}
+                  —
+                {% endif %}
               </div>
 
               <div style="flex: 1; min-width: 0;">
