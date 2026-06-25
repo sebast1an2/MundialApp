@@ -1,0 +1,581 @@
+{% extends 'admin_base.html' %}
+{% block title %}Fixture — {{ event.name }}{% endblock %}
+
+{% block admin_content %}
+
+{# ── Macro: team slot with source fallback ────────────────────────── #}
+{% macro team_slot(team, src_match_id, src_outcome, match_by_id, slot_side) %}
+  {% if team %}
+    {# Team known — show flag + name #}
+    <span class="bk-flag">{{ team.flag_emoji }}</span>
+    <span class="bk-name">{{ team.short_name or team.name }}</span>
+  {% elif src_match_id %}
+    {# No team yet, but source configured — show origin #}
+    {% set src = match_by_id.get(src_match_id) %}
+    {% if src %}
+      {% if src_outcome == 'loser' %}
+        <span class="bk-src-icon bk-src-loser">🥈</span>
+        <span class="bk-src-label bk-src-label-loser">
+          Perd. {{ src.match_label or ('Partido #' ~ src.id) }}
+        </span>
+      {% else %}
+        <span class="bk-src-icon bk-src-winner">🏆</span>
+        <span class="bk-src-label bk-src-label-winner">
+          Gan. {{ src.match_label or ('Partido #' ~ src.id) }}
+        </span>
+      {% endif %}
+    {% else %}
+      <span class="bk-flag bk-tbd">?</span>
+      <span class="bk-name bk-tbd-text">TBD</span>
+    {% endif %}
+  {% else %}
+    {# No team, no source #}
+    <span class="bk-flag bk-tbd">?</span>
+    <span class="bk-name bk-tbd-text">TBD</span>
+  {% endif %}
+{% endmacro %}
+
+{# ─── Header ─────────────────────────────────────────────────────────── #}
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="text-muted small">
+      <i class="bi bi-arrow-left me-1"></i>{{ event.name }}
+    </a>
+    <h1 style="font-size:1.8rem; margin:.25rem 0 0;">🏆 Fixture Eliminatorio</h1>
+    <p class="text-muted mb-0" style="font-size:.85rem;">
+      Configura las conexiones entre partidos. El sistema avanzará los equipos automáticamente al registrar resultados.
+    </p>
+  </div>
+  <a href="{{ url_for('admin.matches', event_id=event.id) }}" class="btn-outline-custom align-self-start">
+    <i class="bi bi-calendar3 me-1"></i>Ver Partidos
+  </a>
+</div>
+
+{# ─── Empty state ─────────────────────────────────────────────────────── #}
+{% if not phase_data %}
+<div class="card-custom">
+  <div class="card-body-custom text-center py-5">
+    <div style="font-size:3rem; margin-bottom:1rem;">🎯</div>
+    <h5 style="font-family:'Outfit',sans-serif;">Sin fases eliminatorias</h5>
+    <p class="text-muted" style="max-width:380px; margin:.5rem auto 1.5rem;">
+      Este evento no tiene fases eliminatorias configuradas.
+      Crea al menos una fase (Octavos, Cuartos, etc.) para configurar el fixture.
+    </p>
+    <a href="{{ url_for('admin.phases', event_id=event.id) }}" class="btn-primary-custom">
+      <i class="bi bi-layers me-1"></i>Ir a Fases
+    </a>
+  </div>
+</div>
+
+{% else %}
+
+{# ─── Phase breadcrumb strip ──────────────────────────────────────────── #}
+<div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
+  {% for pd in phase_data %}
+    <span class="bk-phase-pill">{{ pd.phase.name }}</span>
+    {% if not loop.last %}
+      <i class="bi bi-arrow-right" style="color:var(--text-muted); font-size:.8rem;"></i>
+    {% endif %}
+  {% endfor %}
+</div>
+
+{# ─── Phase sections ──────────────────────────────────────────────────── #}
+{% for pd in phase_data %}
+
+<div class="card-custom mb-3" id="phase-{{ pd.phase.id }}">
+
+  {# Phase header #}
+  <div class="card-header-custom d-flex align-items-center justify-content-between">
+    <span>
+      <i class="bi bi-lightning-fill me-2"></i>{{ pd.phase.name }}
+    </span>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge" style="background:rgba(255,255,255,.2); font-size:.72rem; font-weight:600;">
+        {{ pd.matches|length }} partido{{ 's' if pd.matches|length != 1 else '' }}
+      </span>
+      <a href="{{ url_for('admin.matches', event_id=event.id, phase_id=pd.phase.id) }}"
+         class="badge text-decoration-none"
+         style="background:rgba(255,255,255,.12); font-size:.72rem; color:rgba(255,255,255,.85);">
+        <i class="bi bi-plus me-1"></i>Agregar partido
+      </a>
+    </div>
+  </div>
+
+  <div class="card-body-custom">
+
+    {% if not pd.matches %}
+    <div class="text-center py-4 text-muted">
+      <i class="bi bi-calendar-x" style="font-size:2rem; opacity:.4;"></i>
+      <p class="mt-2 mb-0 small">Sin partidos en esta fase.
+        <a href="{{ url_for('admin.matches', event_id=event.id, phase_id=pd.phase.id) }}">Crear partido</a>
+      </p>
+    </div>
+
+    {% else %}
+
+    {# Hint about available source matches #}
+    {% if pd.source_opts %}
+    <div class="d-flex align-items-center gap-2 mb-3 flex-wrap" style="font-size:.78rem;color:var(--text-muted);">
+      <i class="bi bi-info-circle"></i>
+      <span>Fuentes disponibles para conectar:</span>
+      <span style="color:var(--primary);font-weight:600;">
+        {{ pd.source_opts | map(attribute='label') | list | join(' · ') | truncate(120) }}
+      </span>
+    </div>
+    {% elif not loop.first %}
+    <div class="bk-warn-banner mb-3">
+      <i class="bi bi-exclamation-triangle me-1"></i>
+      No hay partidos en fases anteriores. Crea partidos en la fase anterior primero para habilitar las conexiones.
+    </div>
+    {% endif %}
+
+    {# Match cards grid #}
+    <div class="row g-3">
+      {% for match in pd.matches %}
+      {% set home_team = teams_by_id.get(match.home_team_id) %}
+      {% set away_team = teams_by_id.get(match.away_team_id) %}
+
+      <div class="col-12 col-sm-6 col-lg-4 col-xl-3">
+        <div class="bk-match-card
+          {% if match.is_finished %}bk-finished
+          {% elif match.home_team_id and match.away_team_id %}bk-ready
+          {% else %}bk-tbd-state{% endif %}">
+
+          {# Top bar: label + status #}
+          <div class="bk-card-top">
+            <span class="bk-match-label">
+              {{ match.match_label or ('Partido #' ~ match.id) }}
+              {% if match.bracket_position %}
+                <span class="bk-pos-num">· Pos {{ match.bracket_position }}</span>
+              {% endif %}
+            </span>
+            {% if match.is_finished %}
+              <span class="bk-status-chip bk-status-done">
+                <i class="bi bi-check-circle-fill me-1"></i>{{ match.home_score }}–{{ match.away_score }}
+              </span>
+            {% elif match.home_team_id and match.away_team_id %}
+              <span class="bk-status-chip bk-status-ready">
+                <i class="bi bi-circle-fill me-1" style="font-size:.45rem;"></i>Listo
+              </span>
+            {% else %}
+              <span class="bk-status-chip bk-status-tbd">TBD</span>
+            {% endif %}
+          </div>
+
+          {# Teams (or source origins if TBD) #}
+          <div class="bk-teams">
+            <div class="bk-team {% if match.is_finished and match.home_score > match.away_score %}bk-team-winner{% elif match.is_finished %}bk-team-loser{% endif %}">
+              {{ team_slot(home_team, match.home_source_match_id, match.home_source_outcome, match_by_id, 'home') }}
+            </div>
+            <div class="bk-vs-sep">vs</div>
+            <div class="bk-team bk-team-away {% if match.is_finished and match.away_score > match.home_score %}bk-team-winner{% elif match.is_finished %}bk-team-loser{% endif %}">
+              {{ team_slot(away_team, match.away_source_match_id, match.away_source_outcome, match_by_id, 'away') }}
+            </div>
+          </div>
+
+          {# Penalty winner if applicable #}
+          {% if match.is_finished and match.penalty_winner_id %}
+            {% set pen_w = teams_by_id.get(match.penalty_winner_id) %}
+            {% if pen_w %}
+            <div class="bk-pen-note">
+              ⚽ Clasifica {{ pen_w.short_name or pen_w.name }} (penales)
+            </div>
+            {% endif %}
+          {% endif %}
+
+          {# Edit button #}
+          <button class="bk-edit-btn w-100 mt-2"
+                  type="button"
+                  data-bs-toggle="collapse"
+                  data-bs-target="#edit-{{ match.id }}"
+                  aria-expanded="false">
+            <i class="bi bi-pencil-fill me-1"></i>Editar conexiones
+          </button>
+
+          {# ── Edit form (collapsed) ────────────────────────────── #}
+          <div class="collapse" id="edit-{{ match.id }}">
+            <div class="bk-edit-form mt-2">
+              <form method="POST" action="{{ url_for('admin.bracket_link_save', match_id=match.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                {# Posición en fixture #}
+                <div class="mb-3">
+                  <label class="bk-form-label">
+                    <i class="bi bi-123 me-1"></i>Posición en fixture
+                  </label>
+                  <input type="number" name="bracket_position"
+                         class="form-control-custom bk-input-sm"
+                         value="{{ match.bracket_position or '' }}"
+                         min="1" placeholder="1, 2, 3…">
+                </div>
+
+                <div class="bk-form-divider">
+                  <i class="bi bi-diagram-3 me-1"></i>Origen de los equipos
+                </div>
+
+                {# Origen equipo local #}
+                <div class="bk-form-group">
+                  <label class="bk-form-label">🟦 Equipo Local — proviene de</label>
+                  <select name="home_source_match_id" class="form-control-custom bk-input-sm">
+                    <option value="">— Sin conexión —</option>
+                    {% for opt in pd.source_opts %}
+                      <option value="{{ opt.id }}"
+                              {% if match.home_source_match_id == opt.id %}selected{% endif %}>
+                        {{ opt.label }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <div class="mt-1">
+                    <select name="home_source_outcome" class="form-control-custom bk-input-sm">
+                      <option value="winner" {% if not match.home_source_outcome or match.home_source_outcome == 'winner' %}selected{% endif %}>
+                        🏆 Avanza el Ganador
+                      </option>
+                      <option value="loser" {% if match.home_source_outcome == 'loser' %}selected{% endif %}>
+                        🥈 Avanza el Perdedor (3er/4to puesto)
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                {# Origen equipo visitante #}
+                <div class="bk-form-group mt-3">
+                  <label class="bk-form-label">🟥 Equipo Visitante — proviene de</label>
+                  <select name="away_source_match_id" class="form-control-custom bk-input-sm">
+                    <option value="">— Sin conexión —</option>
+                    {% for opt in pd.source_opts %}
+                      <option value="{{ opt.id }}"
+                              {% if match.away_source_match_id == opt.id %}selected{% endif %}>
+                        {{ opt.label }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <div class="mt-1">
+                    <select name="away_source_outcome" class="form-control-custom bk-input-sm">
+                      <option value="winner" {% if not match.away_source_outcome or match.away_source_outcome == 'winner' %}selected{% endif %}>
+                        🏆 Avanza el Ganador
+                      </option>
+                      <option value="loser" {% if match.away_source_outcome == 'loser' %}selected{% endif %}>
+                        🥈 Avanza el Perdedor (3er/4to puesto)
+                      </option>
+                    </select>
+                  </div>
+                </div>
+
+                {# Buttons #}
+                <div class="d-flex gap-2 mt-3">
+                  <button type="submit" class="btn-primary-custom"
+                          style="font-size:.82rem;padding:.4rem .9rem;flex:1;justify-content:center;">
+                    <i class="bi bi-check-circle me-1"></i>Guardar
+                  </button>
+                  <button type="button"
+                          class="btn-outline-custom"
+                          style="font-size:.82rem;padding:.4rem .9rem;"
+                          data-bs-toggle="collapse"
+                          data-bs-target="#edit-{{ match.id }}">
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+        </div>{# end .bk-match-card #}
+      </div>{# end .col #}
+      {% endfor %}
+    </div>{# end .row #}
+    {% endif %}
+  </div>{# end .card-body-custom #}
+</div>{# end .card-custom #}
+
+{# Arrow between phases #}
+{% if not loop.last %}
+<div class="bk-phase-arrow">
+  <i class="bi bi-arrow-down-circle-fill"></i>
+  <span>clasificados avanzan a la siguiente ronda</span>
+</div>
+{% endif %}
+
+{% endfor %}
+
+{# Legend #}
+<div class="card-custom mt-4">
+  <div class="card-body-custom py-3">
+    <div class="d-flex flex-wrap gap-3 align-items-center" style="font-size:.8rem;color:var(--text-muted);">
+      <strong style="color:var(--text);">Leyenda:</strong>
+      <span class="bk-legend-item">
+        <span class="bk-status-chip bk-status-tbd bk-legend-chip">TBD</span>
+        Equipo sin definir ni conectar
+      </span>
+      <span class="bk-legend-item">
+        <span class="bk-src-label bk-src-label-winner bk-legend-chip" style="font-size:.65rem;">🏆 Gan. X</span>
+        Ganador del partido origen
+      </span>
+      <span class="bk-legend-item">
+        <span class="bk-src-label bk-src-label-loser bk-legend-chip" style="font-size:.65rem;">🥈 Perd. X</span>
+        Perdedor (3er/4to puesto)
+      </span>
+      <span class="bk-legend-item">
+        <span class="bk-status-chip bk-status-done bk-legend-chip">2–1</span>
+        Partido finalizado
+      </span>
+    </div>
+  </div>
+</div>
+
+{% endif %}
+
+{# ─── Styles ──────────────────────────────────────────────────────────── #}
+<style>
+/* ── Phase pill strip ─────────────────────────────────── */
+.bk-phase-pill {
+  background: var(--primary);
+  color: rgba(255,255,255,.85);
+  font-size: .72rem;
+  font-weight: 700;
+  padding: .25rem .7rem;
+  border-radius: 20px;
+  font-family: 'Outfit', sans-serif;
+  letter-spacing: .3px;
+}
+
+/* ── Phase arrow divider ──────────────────────────────── */
+.bk-phase-arrow {
+  text-align: center;
+  padding: .5rem 0;
+  margin-bottom: .75rem;
+  color: var(--text-muted);
+  font-size: .75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .15rem;
+}
+.bk-phase-arrow i {
+  font-size: 1.4rem;
+  color: var(--primary);
+  opacity: .5;
+}
+
+/* ── Warning banner ───────────────────────────────────── */
+.bk-warn-banner {
+  background: rgba(255,193,7,.08);
+  border: 1px solid rgba(255,193,7,.3);
+  border-radius: var(--radius-sm);
+  padding: .45rem .75rem;
+  font-size: .8rem;
+  color: #856404;
+}
+
+/* ── Match card ───────────────────────────────────────── */
+.bk-match-card {
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: .85rem .9rem;
+  transition: var(--transition);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.bk-match-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+}
+.bk-match-card.bk-finished  { border-color: #40916c; border-left: 4px solid #40916c; }
+.bk-match-card.bk-ready     { border-color: rgba(13,27,42,.3); border-left: 4px solid var(--primary); }
+.bk-match-card.bk-tbd-state { border-color: var(--border); }
+
+/* ── Card top row ─────────────────────────────────────── */
+.bk-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: .4rem;
+  margin-bottom: .55rem;
+}
+.bk-match-label {
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bk-pos-num {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: .72rem;
+}
+
+/* ── Status chips ─────────────────────────────────────── */
+.bk-status-chip {
+  font-size: .62rem;
+  font-weight: 700;
+  padding: .15rem .45rem;
+  border-radius: 20px;
+  letter-spacing: .2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.bk-status-tbd   { background: rgba(108,117,125,.12); color: var(--text-muted); }
+.bk-status-ready { background: rgba(13,27,42,.1);     color: var(--primary);    }
+.bk-status-done  { background: rgba(64,145,108,.15);  color: #2d6a4f;           }
+
+/* ── Teams block ──────────────────────────────────────── */
+.bk-teams {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  margin-bottom: .65rem;
+  flex: 1;
+}
+.bk-team {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .35rem .4rem;
+  border-radius: 5px;
+  min-height: 32px;
+}
+.bk-team-winner {
+  background: rgba(64,145,108,.1);
+  border-left: 3px solid #40916c;
+}
+.bk-team-loser  { opacity: .55; }
+.bk-team-away   { border-top: 1px dashed var(--border); }
+
+.bk-flag {
+  font-size: 1.1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.bk-flag.bk-tbd {
+  font-size: .8rem;
+  background: var(--border);
+  color: var(--text-muted);
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.bk-name {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bk-name.bk-tbd-text { color: var(--text-muted); font-style: italic; font-weight: 400; }
+
+/* ── Source origin labels (in team slot) ──────────────── */
+.bk-src-icon { font-size: .9rem; flex-shrink: 0; line-height: 1; }
+.bk-src-label {
+  font-size: .78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bk-src-label-winner { color: #065f46; }
+.bk-src-label-loser  { color: #7a4d1d; }
+
+.bk-vs-sep {
+  font-size: .62rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  padding-left: .4rem;
+}
+
+/* ── Penalty note ─────────────────────────────────────── */
+.bk-pen-note {
+  font-size: .68rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: .2rem .5rem;
+  margin-bottom: .4rem;
+  background: rgba(212,175,55,.1);
+  border-radius: 4px;
+}
+
+/* ── Edit button ──────────────────────────────────────── */
+.bk-edit-btn {
+  background: rgba(13,27,42,.05);
+  border: 1px solid rgba(13,27,42,.12);
+  color: var(--primary);
+  font-size: .78rem;
+  font-weight: 600;
+  padding: .32rem .7rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  margin-top: auto;
+}
+.bk-edit-btn:hover,
+.bk-edit-btn[aria-expanded="true"] {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+/* ── Edit form ────────────────────────────────────────── */
+.bk-edit-form {
+  padding: .75rem;
+  background: rgba(13,27,42,.04);
+  border-radius: 6px;
+  border: 1px solid rgba(13,27,42,.1);
+}
+.bk-form-label {
+  display: block;
+  font-size: .72rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: .3rem;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+.bk-input-sm {
+  font-size: .82rem !important;
+  padding: .35rem .65rem !important;
+  border-radius: 6px !important;
+}
+.bk-form-divider {
+  font-size: .7rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: rgba(13,27,42,.06);
+  padding: .3rem .6rem;
+  border-radius: 4px;
+  margin-bottom: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.bk-form-group { }
+
+/* ── Legend ───────────────────────────────────────────── */
+.bk-legend-item {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+.bk-legend-chip { pointer-events: none; }
+
+/* ── Responsive ───────────────────────────────────────── */
+@media (max-width: 575px) {
+  .bk-match-card { margin-bottom: .5rem; }
+  .bk-name, .bk-src-label { font-size: .8rem; }
+}
+</style>
+
+{% endblock %}

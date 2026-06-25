@@ -16,6 +16,35 @@
   <div class="card-body-custom">
     <form method="POST">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      {% if not event %}
+      {% set available_templates = templates if templates is defined else [] %}
+      {% if available_templates %}
+      <div class="mb-4" style="background: rgba(99,102,241,.08); border: 1.5px solid rgba(99,102,241,.3); border-radius: var(--radius-sm); padding: 1rem 1.1rem;">
+        <label class="form-label-custom mb-1" style="color: var(--primary);">
+          <i class="bi bi-layout-text-sidebar-reverse me-1"></i>Plantilla (opcional)
+        </label>
+        <select name="template_id" class="form-control-custom" id="template_select" onchange="onTemplateChange(this)">
+          <option value="">— Sin plantilla (configuración manual) —</option>
+          {% for t in available_templates %}
+          <option value="{{ t.id }}" data-desc="{{ t.description or '' }}"
+                  data-phases="{{ t.phases.count() }}"
+                  data-scoring="{{ t.scoring_configs.count() }}">
+            {{ t.logo_emoji }} {{ t.name }}
+          </option>
+          {% endfor %}
+        </select>
+        <div id="template_info" class="mt-2" style="display:none;">
+          <small class="text-muted" id="template_info_text"></small>
+        </div>
+        <small class="text-muted d-block mt-1">
+          Si seleccionas una plantilla, las fases y reglas de puntuación se crearán automáticamente.
+          Puedes modificarlas después.
+        </small>
+      </div>
+      {% endif %}
+      {% endif %}
+
       <div class="mb-3">
         <label class="form-label-custom">Nombre del evento *</label>
         <input type="text" name="name" class="form-control-custom"
@@ -181,4 +210,25 @@
     </form>
   </div>
 </div>
+
+<script>
+function onTemplateChange(select) {
+  var infoDiv = document.getElementById('template_info');
+  var infoText = document.getElementById('template_info_text');
+  var opt = select.options[select.selectedIndex];
+  if (!select.value) {
+    infoDiv.style.display = 'none';
+    return;
+  }
+  var phases = opt.getAttribute('data-phases');
+  var scoring = opt.getAttribute('data-scoring');
+  var desc = opt.getAttribute('data-desc');
+  var parts = [];
+  if (phases > 0) parts.push(phases + ' fase(s) predefinida(s)');
+  if (scoring > 0) parts.push('reglas de puntuación configuradas');
+  var summary = parts.length ? '✅ ' + parts.join(' · ') : '⚠️ Sin fases ni puntuación configurada aún';
+  infoText.innerHTML = summary + (desc ? '<br>' + desc : '');
+  infoDiv.style.display = 'block';
+}
+</script>
 {% endblock %}

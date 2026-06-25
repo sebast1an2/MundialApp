@@ -1,0 +1,111 @@
+{% extends 'admin_base.html' %}
+{% block title %}{% if template %}Editar Plantilla{% else %}Nueva Plantilla{% endif %} — Admin{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+  <a href="{{ url_for('admin.templates') }}" class="btn-outline-custom">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <h1 style="font-size: 1.8rem; margin: 0;">
+    {% if template %}✏️ Editar Plantilla{% else %}➕ Nueva Plantilla{% endif %}
+  </h1>
+</div>
+
+<div class="card-custom" style="max-width: 650px;">
+  <div class="card-header-custom">
+    {% if template %}{{ template.logo_emoji }} {{ template.name }}{% else %}Datos de la Plantilla{% endif %}
+  </div>
+  <div class="card-body-custom">
+    <form method="POST">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="mb-3">
+        <label class="form-label-custom">Nombre de la plantilla *</label>
+        <input type="text" name="name" class="form-control-custom" required
+               value="{{ template.name if template else '' }}"
+               placeholder="Mundial FIFA, Champions League, Eliminación Directa...">
+      </div>
+
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="form-label-custom">Emoji / Ícono</label>
+          <input type="text" name="logo_emoji" class="form-control-custom"
+                 value="{{ template.logo_emoji if template else '📋' }}" placeholder="📋">
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="form-label-custom">Descripción</label>
+        <textarea name="description" class="form-control-custom" rows="2"
+                  placeholder="Describe la estructura y propósito de esta plantilla...">{{ template.description if template else '' }}</textarea>
+      </div>
+
+      <!-- Características estructurales -->
+      <div class="mb-4" style="border-top: 2px solid var(--border); padding-top: 1.25rem;">
+        <div class="form-label-custom mb-3" style="color: var(--primary); font-size: .9rem;">
+          <i class="bi bi-sliders me-1"></i>Características del torneo
+        </div>
+
+        <div class="d-flex flex-column gap-3">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="allows_group_stage"
+                   id="allows_group_stage"
+                   {% if not template or template.allows_group_stage %}checked{% endif %}>
+            <label class="form-check-label" for="allows_group_stage">
+              <i class="bi bi-collection me-1"></i>
+              <strong>Fase de grupos</strong> — El torneo incluye una fase de grupos
+            </label>
+          </div>
+
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="allows_knockout"
+                   id="allows_knockout"
+                   {% if not template or template.allows_knockout %}checked{% endif %}>
+            <label class="form-check-label" for="allows_knockout">
+              <i class="bi bi-lightning-fill me-1"></i>
+              <strong>Fase eliminatoria</strong> — El torneo incluye rondas eliminatorias
+            </label>
+          </div>
+
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="uses_bracket"
+                   id="uses_bracket"
+                   {% if template and template.uses_bracket %}checked{% endif %}>
+            <label class="form-check-label" for="uses_bracket">
+              <i class="bi bi-diagram-3 me-1"></i>
+              <strong>Fixture visual</strong>
+              <span class="badge ms-1" style="background: rgba(245,158,11,.2); color: #d97706; font-size: .65rem;">Próximamente</span>
+              — Preparado para visualización del fixture en fases eliminatorias
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {% if template %}
+      <!-- Estado solo editable en modo edición -->
+      <div class="mb-4">
+        <div class="form-check form-switch">
+          <input class="form-check-input" type="checkbox" name="is_active"
+                 id="is_active" {% if template.is_active %}checked{% endif %}>
+          <label class="form-check-label" for="is_active">
+            Plantilla activa — disponible al crear nuevos eventos
+          </label>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn-primary-custom">
+          <i class="bi bi-check-lg me-1"></i>
+          {% if template %}Guardar Cambios{% else %}Crear Plantilla{% endif %}
+        </button>
+        {% if template %}
+          <a href="{{ url_for('admin.template_detail', template_id=template.id) }}" class="btn-outline-custom">Cancelar</a>
+        {% else %}
+          <a href="{{ url_for('admin.templates') }}" class="btn-outline-custom">Cancelar</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -154,16 +154,24 @@
                 {# Equipos #}
                 <div style="flex: 1; min-width: 0;">
                   <div class="d-flex align-items-center gap-1 mb-1">
-                    <span style="font-size: 1rem;">{{ match.home_team.flag_emoji }}</span>
-                    <span style="font-size: .85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                      {{ match.home_team.short_name or match.home_team.name }}
-                    </span>
+                    {% if match.home_team %}
+                      <span style="font-size: 1rem;">{{ match.home_team.flag_emoji }}</span>
+                      <span style="font-size: .85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        {{ match.home_team.short_name or match.home_team.name }}
+                      </span>
+                    {% else %}
+                      <span style="font-size: .82rem; color: var(--text-muted); font-style: italic;">TBD</span>
+                    {% endif %}
                   </div>
                   <div class="d-flex align-items-center gap-1">
-                    <span style="font-size: 1rem;">{{ match.away_team.flag_emoji }}</span>
-                    <span style="font-size: .85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                      {{ match.away_team.short_name or match.away_team.name }}
-                    </span>
+                    {% if match.away_team %}
+                      <span style="font-size: 1rem;">{{ match.away_team.flag_emoji }}</span>
+                      <span style="font-size: .85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        {{ match.away_team.short_name or match.away_team.name }}
+                      </span>
+                    {% else %}
+                      <span style="font-size: .82rem; color: var(--text-muted); font-style: italic;">TBD</span>
+                    {% endif %}
                   </div>
                   <div class="mt-1">
                     <span style="font-size: .65rem; color: var(--text-muted); font-weight: 500;">
@@ -274,6 +282,11 @@
             <a href="{{ url_for('public.group_standings', event_id=event.id) }}" class="btn-outline-custom w-100 justify-content-start py-3 px-4">
               <i class="bi bi-table me-3"></i> Tabla de Grupos
             </a>
+            {% if has_bracket %}
+            <a href="{{ url_for('public.bracket_public', event_id=event.id) }}" class="btn-outline-custom w-100 justify-content-start py-3 px-4">
+              <i class="bi bi-diagram-3 me-3"></i> Fixture Eliminatorio
+            </a>
+            {% endif %}
             {% if event.can_view_others_predictions %}
             <a href="{{ url_for('public.ranking', event_id=event.id) }}" class="btn-outline-custom w-100 justify-content-start py-3 px-4">
               <i class="bi bi-bar-chart me-3"></i> Ranking Completo
@@ -305,8 +318,12 @@
                 </div>
                 <div class="d-flex align-items-center gap-3 justify-content-center flex-grow-1">
                   <div class="text-end" style="width: 100px;">
-                    <span class="fw-bold small">{{ match.home_team.name }}</span>
-                    <span class="ms-2" style="font-size: 1.2rem;">{{ match.home_team.flag_emoji }}</span>
+                    {% if match.home_team %}
+                      <span class="fw-bold small">{{ match.home_team.name }}</span>
+                      <span class="ms-2" style="font-size: 1.2rem;">{{ match.home_team.flag_emoji }}</span>
+                    {% else %}
+                      <span class="text-muted small fst-italic">TBD</span>
+                    {% endif %}
                   </div>
                   <div class="d-flex align-items-center gap-2">
                     {% if match.is_finished %}
@@ -320,8 +337,12 @@
                     {% endif %}
                   </div>
                   <div class="text-start" style="width: 100px;">
-                    <span class="me-2" style="font-size: 1.2rem;">{{ match.away_team.flag_emoji }}</span>
-                    <span class="fw-bold small">{{ match.away_team.name }}</span>
+                    {% if match.away_team %}
+                      <span class="me-2" style="font-size: 1.2rem;">{{ match.away_team.flag_emoji }}</span>
+                      <span class="fw-bold small">{{ match.away_team.name }}</span>
+                    {% else %}
+                      <span class="text-muted small fst-italic">TBD</span>
+                    {% endif %}
                   </div>
                 </div>
                 <div class="d-flex flex-column align-items-end gap-1" style="min-width: 80px;">
@@ -417,7 +438,11 @@
             <a href="{{ url_for('public.group_standings', event_id=event.id) }}" class="btn-outline-custom w-100 justify-content-start py-3 px-4">
               <i class="bi bi-table me-3"></i> Tabla de Grupos
             </a>
-            
+            {% if has_bracket %}
+            <a href="{{ url_for('public.bracket_public', event_id=event.id) }}" class="btn-outline-custom w-100 justify-content-start py-3 px-4">
+              <i class="bi bi-diagram-3 me-3"></i> Fixture Eliminatorio
+            </a>
+            {% endif %}
             {% if event.can_view_others_predictions %}
             <a href="{{ url_for('public.ranking', event_id=event.id) }}" class="btn-outline-custom w-100 justify-content-start py-3 px-4">
               <i class="bi bi-bar-chart me-3"></i> Ranking Completo

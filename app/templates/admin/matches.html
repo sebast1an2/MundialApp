@@ -30,25 +30,26 @@
 <div class="card-custom mb-4">
   <div class="card-header-custom"><i class="bi bi-plus-circle me-2"></i>Nuevo Partido — {{ selected_phase.name }}</div>
   <div class="card-body-custom">
+    {% set is_group_phase = selected_phase and ('grupo' in selected_phase.name|lower) %}
+
     {% if is_knockout and not all_teams %}
-      <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center mb-0" style="background: rgba(255,193,7,.1); color: #856404; border-radius: 12px; padding: 1.5rem;">
-        <i class="bi bi-exclamation-triangle-fill fs-3 me-3"></i>
+      <div class="alert d-flex align-items-start gap-2 mb-3"
+           style="background:rgba(255,193,7,.1);color:#856404;border:1px solid rgba(255,193,7,.3);border-radius:var(--radius-sm);">
+        <i class="bi bi-exclamation-triangle-fill mt-1"></i>
         <div>
-          <h6 class="mb-1 fw-bold">Aún no hay equipos clasificados disponibles para esta fase</h6>
-          <p class="mb-0 small">El sistema requiere que los partidos de la fase anterior estén finalizados y con resultados cargados para determinar qué equipos avanzan.</p>
+          <strong>Sin equipos clasificados aún.</strong>
+          Puedes crear slots TBD para definir la estructura del fixture anticipadamente.
+          Los equipos se asignarán manualmente cuando avancen los clasificados.
         </div>
       </div>
-    {% else %}
+    {% endif %}
+
     <form method="POST" action="{{ url_for('admin.matches_new', event_id=event.id) }}" class="row g-3 align-items-end">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      {% set is_group_phase = false %}
-      {% if selected_phase and (('grupo' in selected_phase.name|lower) or (selected_phase.phase_order == 1)) %}
-        {% set is_group_phase = true %}
-      {% endif %}
-
       <input type="hidden" name="phase_id" value="{{ selected_phase.id }}">
-      
+
       {% if is_group_phase %}
+      <!-- Selector de grupo — solo fase de grupos -->
       <div class="col-12 col-md-2" id="group-col">
         <label class="form-label-custom">Grupo *</label>
         <select name="group_id" id="match_group_id" class="form-control-custom" required>
@@ -60,22 +61,33 @@
       </div>
       {% endif %}
 
+      <!-- Equipos: obligatorios en grupos, opcionales en eliminatorias (TBD) -->
       <div class="col-12 {% if is_group_phase %}col-md-3{% else %}col-md-4{% endif %}">
-        <label class="form-label-custom">Equipo Local *</label>
-        <select name="home_team_id" id="home_team_id" class="form-control-custom" required {% if is_group_phase %}disabled{% endif %}>
-          <option value="">— Seleccionar —</option>
+        <label class="form-label-custom">
+          Equipo Local {% if is_group_phase %}*{% else %}<span class="text-muted" style="font-weight:400;">(o TBD)</span>{% endif %}
+        </label>
+        <select name="home_team_id" id="home_team_id" class="form-control-custom"
+                {% if is_group_phase %}required disabled{% endif %}>
+          <option value="">— {% if is_knockout %}TBD{% else %}Seleccionar{% endif %} —</option>
           {% for team in all_teams %}
-            <option value="{{ team.id }}" data-group-id="{{ team_group_map.get(team.id, '') }}">{{ team.flag_emoji }} {{ team.name }}</option>
+            <option value="{{ team.id }}" data-group-id="{{ team_group_map.get(team.id, '') }}">
+              {{ team.flag_emoji }} {{ team.name }}
+            </option>
           {% endfor %}
         </select>
       </div>
 
       <div class="col-12 {% if is_group_phase %}col-md-3{% else %}col-md-4{% endif %}">
-        <label class="form-label-custom">Equipo Visitante *</label>
-        <select name="away_team_id" id="away_team_id" class="form-control-custom" required {% if is_group_phase %}disabled{% endif %}>
-          <option value="">— Seleccionar —</option>
+        <label class="form-label-custom">
+          Equipo Visitante {% if is_group_phase %}*{% else %}<span class="text-muted" style="font-weight:400;">(o TBD)</span>{% endif %}
+        </label>
+        <select name="away_team_id" id="away_team_id" class="form-control-custom"
+                {% if is_group_phase %}required disabled{% endif %}>
+          <option value="">— {% if is_knockout %}TBD{% else %}Seleccionar{% endif %} —</option>
           {% for team in all_teams %}
-            <option value="{{ team.id }}" data-group-id="{{ team_group_map.get(team.id, '') }}">{{ team.flag_emoji }} {{ team.name }}</option>
+            <option value="{{ team.id }}" data-group-id="{{ team_group_map.get(team.id, '') }}">
+              {{ team.flag_emoji }} {{ team.name }}
+            </option>
           {% endfor %}
         </select>
       </div>
@@ -84,13 +96,78 @@
         <label class="form-label-custom">Fecha/Hora</label>
         <input type="datetime-local" name="match_date" class="form-control-custom">
       </div>
+
+      <!-- ── Fixture: conectar con partido anterior (fases eliminatorias con fase previa) ── -->
+      {% if is_knockout and bracket_source_matches %}
+      <div class="col-12">
+        <div style="border-top:1px solid var(--border);padding-top:.75rem;margin-top:.25rem;">
+          <div class="form-label-custom mb-2" style="font-size:.8rem;color:var(--text-muted);">
+            <i class="bi bi-diagram-3 me-1"></i>
+            Fixture — Conectar con partido anterior
+            <span class="badge ms-1" style="background:rgba(99,102,241,.15);color:var(--primary);font-size:.65rem;">Avance automático</span>
+          </div>
+          <p style="font-size:.75rem;color:var(--text-muted);margin-bottom:.75rem;">
+            Indica de qué partido anterior viene cada equipo. Cuando ese partido termine, el clasificado se asignará aquí automáticamente.
+          </p>
+          <div class="row g-2">
+            <div class="col-12 col-md-4">
+              <label class="form-label-custom" style="font-size:.78rem;">¿De qué partido viene el Local?</label>
+              <select name="home_source_match_id" class="form-control-custom" style="font-size:.83rem;">
+                <option value="">— No conectar —</option>
+                {% for m in bracket_source_matches %}
+                <option value="{{ m.id }}">
+                  {% if m.match_label %}{{ m.match_label }}: {% endif %}
+                  {% if m.home_team %}{{ m.home_team.short_name or m.home_team.name }}{% else %}TBD{% endif %}
+                  vs
+                  {% if m.away_team %}{{ m.away_team.short_name or m.away_team.name }}{% else %}TBD{% endif %}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label-custom" style="font-size:.78rem;">Viene como</label>
+              <select name="home_source_outcome" class="form-control-custom" style="font-size:.83rem;">
+                <option value="winner">🏆 Ganador</option>
+                <option value="loser">🥈 Perdedor (3°/4°)</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label-custom" style="font-size:.78rem;">¿De qué partido viene el Visitante?</label>
+              <select name="away_source_match_id" class="form-control-custom" style="font-size:.83rem;">
+                <option value="">— No conectar —</option>
+                {% for m in bracket_source_matches %}
+                <option value="{{ m.id }}">
+                  {% if m.match_label %}{{ m.match_label }}: {% endif %}
+                  {% if m.home_team %}{{ m.home_team.short_name or m.home_team.name }}{% else %}TBD{% endif %}
+                  vs
+                  {% if m.away_team %}{{ m.away_team.short_name or m.away_team.name }}{% else %}TBD{% endif %}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label-custom" style="font-size:.78rem;">Viene como</label>
+              <select name="away_source_outcome" class="form-control-custom" style="font-size:.83rem;">
+                <option value="winner">🏆 Ganador</option>
+                <option value="loser">🥈 Perdedor (3°/4°)</option>
+              </select>
+            </div>
+            <div class="col-6 col-md-2">
+              <label class="form-label-custom" style="font-size:.78rem;">Posición en fixture</label>
+              <input type="number" name="bracket_position" class="form-control-custom"
+                     min="1" placeholder="1,2,3…" style="font-size:.83rem;">
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       <div class="col-12">
         <button type="submit" class="btn-primary-custom">
           <i class="bi bi-plus-lg me-1"></i>Crear Partido
         </button>
       </div>
     </form>
-    {% endif %}
   </div>
 </div>
 
@@ -124,17 +201,27 @@
               </small>
             </td>
             <td>
-              {{ match.home_team.flag_emoji }}
-              <strong class="ms-1">{{ match.home_team.name }}</strong>
+              {% if match.home_team %}
+                {{ match.home_team.flag_emoji }}
+                <strong class="ms-1">{{ match.home_team.name }}</strong>
+              {% else %}
+                <span class="text-muted fst-italic">TBD</span>
+              {% endif %}
             </td>
             <td style="text-align:center; color: var(--text-muted);">vs</td>
             <td>
-              <strong>{{ match.away_team.name }}</strong>
-              {{ match.away_team.flag_emoji }}
+              {% if match.away_team %}
+                <strong>{{ match.away_team.name }}</strong>
+                {{ match.away_team.flag_emoji }}
+              {% else %}
+                <span class="text-muted fst-italic">TBD</span>
+              {% endif %}
             </td>
             <td><small class="text-muted">{{ match.group.name if match.group else '—' }}</small></td>
             <td>
-              {% if match.is_finished %}
+              {% if not match.home_team_id or not match.away_team_id %}
+                <span class="badge" style="background:rgba(99,102,241,.2);color:var(--primary);">TBD</span>
+              {% elif match.is_finished %}
                 <span class="badge bg-success">{{ match.home_score }}–{{ match.away_score }}</span>
               {% else %}
                 <span class="badge bg-secondary">Pendiente</span>

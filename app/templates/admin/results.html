@@ -2,6 +2,8 @@
 {% block title %}Cargar Resultados — {{ event.name }}{% endblock %}
 
 {% block admin_content %}
+
+{# ── Page header ──────────────────────────────────────────────── #}
 <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
   <div>
     <a href="{{ url_for('admin.event_detail', event_id=event.id) }}" class="text-muted small">
@@ -11,13 +13,14 @@
   </div>
 </div>
 
-<!-- Phase filter -->
+{# ── Phase filter ─────────────────────────────────────────────── #}
 <div class="card-custom mb-4">
   <div class="card-body-custom">
     <label class="form-label-custom">Seleccionar Fase</label>
     <select id="phase-filter-select" class="form-control-custom" style="max-width: 300px;">
       {% for phase in phases %}
-        <option value="{{ phase.id }}" {% if selected_phase and phase.id == selected_phase.id %}selected{% endif %}>
+        <option value="{{ phase.id }}"
+                {% if selected_phase and phase.id == selected_phase.id %}selected{% endif %}>
           {{ phase.name }}
         </option>
       {% endfor %}
@@ -27,122 +30,606 @@
 
 {% if selected_phase %}
   {% if matches %}
-    <div class="row g-3">
-      {% for match in matches %}
-      <div class="col-12 col-lg-6">
-        <div class="match-card">
-          <!-- Match label -->
-          {% if match.match_label %}
-            <div class="text-center mb-2">
-              <small class="text-muted" style="font-size: .75rem; text-transform: uppercase; letter-spacing: 1px;">
-                {{ match.match_label }}
-              </small>
-            </div>
-          {% endif %}
-          {% if match.match_date %}
-            <div class="text-center mb-2">
-              <small class="text-muted">📅 {{ match.match_date.strftime('%d/%m/%Y %H:%M') }}</small>
-            </div>
-          {% endif %}
 
-          <!-- Teams vs Score form -->
+    {# ── Split by status ──────────────────────────────────────── #}
+    {% set pending  = [] %}
+    {% set finished = [] %}
+    {% for m in matches %}
+      {% if m.is_finished %}{% if finished.append(m) %}{% endif %}
+      {% else %}{% if pending.append(m) %}{% endif %}{% endif %}
+    {% endfor %}
+
+    {% set is_ko = 'grupo' not in selected_phase.name|lower %}
+
+    {# ── KPI chips ────────────────────────────────────────────── #}
+    <div class="d-flex gap-3 mb-4 flex-wrap">
+      <div class="res-kpi res-kpi-pending">
+        <span style="font-size:1.2rem;">⏳</span>
+        <div>
+          <div class="res-kpi-num" style="color:#dc3545;">{{ pending|length }}</div>
+          <div class="res-kpi-lbl">Pendientes</div>
+        </div>
+      </div>
+      <div class="res-kpi res-kpi-done">
+        <span style="font-size:1.2rem;">✅</span>
+        <div>
+          <div class="res-kpi-num" style="color:#198754;">{{ finished|length }}</div>
+          <div class="res-kpi-lbl">Registrados</div>
+        </div>
+      </div>
+      <div class="res-kpi" style="background:rgba(13,27,42,.05);border-color:var(--border);">
+        <span style="font-size:1.2rem;">📋</span>
+        <div>
+          <div class="res-kpi-num" style="color:var(--primary);">{{ matches|length }}</div>
+          <div class="res-kpi-lbl">Total fase</div>
+        </div>
+      </div>
+    </div>
+
+    {# ══════════════════════════════════════════════════════════════
+       SECCIÓN 1 — PENDIENTES POR RESULTADO
+    ══════════════════════════════════════════════════════════════ #}
+    {% if pending %}
+    <div class="card-custom mb-4" style="border-left: 4px solid #dc3545;">
+      <div class="card-header-custom d-flex align-items-center justify-content-between"
+           style="background:linear-gradient(135deg,#7f1d1d 0%,var(--primary) 100%);">
+        <span><i class="bi bi-hourglass-split me-2"></i>Pendientes por registrar</span>
+        <span class="res-count-badge" style="background:rgba(220,53,69,.35);color:#fca5a5;">
+          {{ pending|length }}
+        </span>
+      </div>
+      <div class="card-body-custom p-0">
+        {% for match in pending %}
+        <div class="res-form-wrap {% if not loop.last %}res-divider{% endif %}">
           <form method="POST" action="{{ url_for('admin.matches_result', match_id=match.id) }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="match-teams align-items-center">
-              <!-- Home team -->
-              <div class="team-block">
-                <span class="team-flag">{{ match.home_team.flag_emoji }}</span>
-                <span class="team-name">{{ match.home_team.name }}</span>
+
+            <div class="res-row">
+
+              {# Meta (label + fecha) #}
+              <div class="res-meta">
+                {% if match.match_label %}
+                  <span class="res-chip">{{ match.match_label }}</span>
+                {% endif %}
+                <span class="res-date">
+                  {{ match.match_date.strftime('%d/%m %H:%M') if match.match_date else '—' }}
+                </span>
               </div>
 
-              <!-- Score inputs -->
-              <div class="d-flex flex-column align-items-center gap-2">
-                <div class="score-inputs">
-                  <input type="number" name="home_score" class="score-input"
-                         value="{{ match.home_score if match.home_score is not none else '' }}"
+              {# Equipos + inputs #}
+              <div class="res-teams">
+                <div class="res-team res-team-home">
+                  <span class="res-flag">{{ match.home_team.flag_emoji if match.home_team else '❓' }}</span>
+                  <span class="res-tname">
+                    {{ (match.home_team.short_name or match.home_team.name) if match.home_team else 'TBD' }}
+                  </span>
+                </div>
+
+                <div class="res-score-wrap">
+                  <input type="number" name="home_score" class="score-input res-sinput"
                          min="0" max="99" placeholder="—">
                   <span class="score-separator">:</span>
-                  <input type="number" name="away_score" class="score-input"
-                         value="{{ match.away_score if match.away_score is not none else '' }}"
+                  <input type="number" name="away_score" class="score-input res-sinput"
                          min="0" max="99" placeholder="—">
                 </div>
-                {% if selected_phase.phase_order > 1 %}
-                <div class="mt-2 w-100 penalty-section" style="display: {% if match.home_score == match.away_score and match.home_score is not none %}block{% else %}none{% endif %};">
-                  <label class="form-label-custom mb-1 text-center d-block" style="font-size: .7rem; letter-spacing: 0.5px; text-transform: uppercase; color: var(--gold);">🏆 Ganador Penales</label>
-                  <select name="penalty_winner_id" class="form-control-custom form-control-sm text-center" style="font-size: .8rem; background: rgba(255,255,255,.05);">
-                    <option value="">— Elegir Ganador —</option>
-                    <option value="{{ match.home_team_id }}" {% if match.penalty_winner_id == match.home_team_id %}selected{% endif %}>{{ match.home_team.name }}</option>
-                    <option value="{{ match.away_team_id }}" {% if match.penalty_winner_id == match.away_team_id %}selected{% endif %}>{{ match.away_team.name }}</option>
+
+                <div class="res-team res-team-away">
+                  <span class="res-tname">
+                    {{ (match.away_team.short_name or match.away_team.name) if match.away_team else 'TBD' }}
+                  </span>
+                  <span class="res-flag">{{ match.away_team.flag_emoji if match.away_team else '❓' }}</span>
+                </div>
+              </div>
+
+              {# Botón guardar #}
+              <div class="res-btn-wrap">
+                <button type="submit" class="btn-primary-custom res-btn-save">
+                  <i class="bi bi-check-circle me-1"></i>
+                  <span>Guardar</span>
+                </button>
+              </div>
+
+            </div>{# /res-row #}
+
+            {# Penalty (fases eliminatorias) #}
+            {% if is_ko %}
+            <div class="penalty-section res-penalty" style="display:none;">
+              <i class="bi bi-trophy-fill me-1" style="color:var(--gold);font-size:.8rem;"></i>
+              <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gold);">
+                Clasifica en penales:
+              </span>
+              <select name="penalty_winner_id" class="form-control-custom"
+                      style="font-size:.82rem;max-width:200px;padding:.3rem .6rem;">
+                <option value="">— Elegir —</option>
+                <option value="{{ match.home_team_id }}">
+                  {{ match.home_team.name if match.home_team else 'Local' }}
+                </option>
+                <option value="{{ match.away_team_id }}">
+                  {{ match.away_team.name if match.away_team else 'Visitante' }}
+                </option>
+              </select>
+            </div>
+            {% endif %}
+
+          </form>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}{# /pending #}
+
+    {# ══════════════════════════════════════════════════════════════
+       SECCIÓN 2 — RESULTADOS REGISTRADOS
+    ══════════════════════════════════════════════════════════════ #}
+    {% if finished %}
+    <div class="card-custom">
+      <div class="card-header-custom d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-check2-circle me-2"></i>Resultados registrados</span>
+        <span class="res-count-badge" style="background:rgba(25,135,84,.25);color:#6ee7b7;">
+          {{ finished|length }}
+        </span>
+      </div>
+      <div class="card-body-custom p-0">
+
+        {% for match in finished %}
+        <div class="{% if not loop.last %}res-divider{% endif %}">
+
+          {# ── Fila compacta de resultado ──────────────────────── #}
+          <div class="res-done-row">
+
+            {# Meta #}
+            <div class="res-meta res-meta-done">
+              {% if match.match_label %}
+                <span class="res-chip">{{ match.match_label }}</span>
+              {% endif %}
+              <span class="res-date">
+                {{ match.match_date.strftime('%d/%m') if match.match_date else '—' }}
+              </span>
+            </div>
+
+            {# Resultado #}
+            <div class="res-done-result">
+              <span class="res-flag">{{ match.home_team.flag_emoji if match.home_team else '❓' }}</span>
+              <span class="res-done-tname">
+                {{ (match.home_team.short_name or match.home_team.name) if match.home_team else 'TBD' }}
+              </span>
+
+              <div class="res-done-scorebox">
+                <span class="res-done-num">{{ match.home_score }}</span>
+                <span class="res-done-dash">–</span>
+                <span class="res-done-num">{{ match.away_score }}</span>
+              </div>
+
+              <span class="res-done-tname res-done-tname-r">
+                {{ (match.away_team.short_name or match.away_team.name) if match.away_team else 'TBD' }}
+              </span>
+              <span class="res-flag">{{ match.away_team.flag_emoji if match.away_team else '❓' }}</span>
+
+              {% if match.penalty_winner_id %}
+                {% if match.penalty_winner_id == match.home_team_id %}
+                  {% set pen_name = (match.home_team.short_name or match.home_team.name) if match.home_team else '?' %}
+                {% else %}
+                  {% set pen_name = (match.away_team.short_name or match.away_team.name) if match.away_team else '?' %}
+                {% endif %}
+                <span class="res-pen-chip">⚽ {{ pen_name }}</span>
+              {% endif %}
+            </div>
+
+            {# Acciones #}
+            <div class="res-done-actions">
+              <button type="button"
+                      class="btn-outline-custom res-icon-btn"
+                      data-bs-toggle="collapse"
+                      data-bs-target="#edit-{{ match.id }}"
+                      title="Editar resultado">
+                <i class="bi bi-pencil-fill"></i>
+                <span class="d-none d-md-inline ms-1">Editar</span>
+              </button>
+
+              <form method="POST"
+                    action="{{ url_for('admin.matches_result', match_id=match.id) }}"
+                    class="d-inline"
+                    onsubmit="return confirm('¿Borrar resultado? Los puntos serán recalculados.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="clear_result" value="1">
+                <button type="submit"
+                        class="res-icon-btn res-btn-danger"
+                        title="Borrar resultado">
+                  <i class="bi bi-trash-fill"></i>
+                </button>
+              </form>
+            </div>
+
+          </div>{# /res-done-row #}
+
+          {# ── Collapse: formulario de edición ─────────────────── #}
+          <div class="collapse" id="edit-{{ match.id }}">
+            <div class="res-form-wrap res-edit-inner">
+              <form method="POST" action="{{ url_for('admin.matches_result', match_id=match.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="res-row">
+                  <div class="res-meta">
+                    <small style="font-size:.7rem;font-weight:600;color:var(--text-muted);">
+                      <i class="bi bi-pencil me-1"></i>Corrección
+                    </small>
+                  </div>
+
+                  <div class="res-teams">
+                    <div class="res-team res-team-home">
+                      <span class="res-flag">{{ match.home_team.flag_emoji if match.home_team else '❓' }}</span>
+                      <span class="res-tname">
+                        {{ (match.home_team.short_name or match.home_team.name) if match.home_team else 'TBD' }}
+                      </span>
+                    </div>
+                    <div class="res-score-wrap">
+                      <input type="number" name="home_score" class="score-input res-sinput"
+                             value="{{ match.home_score if match.home_score is not none else '' }}"
+                             min="0" max="99" placeholder="—">
+                      <span class="score-separator">:</span>
+                      <input type="number" name="away_score" class="score-input res-sinput"
+                             value="{{ match.away_score if match.away_score is not none else '' }}"
+                             min="0" max="99" placeholder="—">
+                    </div>
+                    <div class="res-team res-team-away">
+                      <span class="res-tname">
+                        {{ (match.away_team.short_name or match.away_team.name) if match.away_team else 'TBD' }}
+                      </span>
+                      <span class="res-flag">{{ match.away_team.flag_emoji if match.away_team else '❓' }}</span>
+                    </div>
+                  </div>
+
+                  <div class="res-btn-wrap">
+                    <button type="submit" class="btn-primary-custom res-btn-save">
+                      <i class="bi bi-check-circle me-1"></i>
+                      <span>Guardar</span>
+                    </button>
+                  </div>
+                </div>
+
+                {# Penalty (eliminatorias) #}
+                {% if is_ko %}
+                <div class="penalty-section res-penalty {% if match.home_score == match.away_score and match.home_score is not none %}res-penalty-show{% endif %}">
+                  <i class="bi bi-trophy-fill me-1" style="color:var(--gold);font-size:.8rem;"></i>
+                  <span style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--gold);">
+                    Clasifica en penales:
+                  </span>
+                  <select name="penalty_winner_id" class="form-control-custom"
+                          style="font-size:.82rem;max-width:200px;padding:.3rem .6rem;">
+                    <option value="">— Elegir —</option>
+                    <option value="{{ match.home_team_id }}"
+                            {% if match.penalty_winner_id == match.home_team_id %}selected{% endif %}>
+                      {{ match.home_team.name if match.home_team else 'Local' }}
+                    </option>
+                    <option value="{{ match.away_team_id }}"
+                            {% if match.penalty_winner_id == match.away_team_id %}selected{% endif %}>
+                      {{ match.away_team.name if match.away_team else 'Visitante' }}
+                    </option>
                   </select>
                 </div>
                 {% endif %}
-                {% if match.is_finished %}
-                  <span class="badge bg-success">✅ Finalizado</span>
-                {% else %}
-                  <span class="badge bg-secondary">Pendiente</span>
-                {% endif %}
-              </div>
 
-              <!-- Away team -->
-              <div class="team-block">
-                <span class="team-flag">{{ match.away_team.flag_emoji }}</span>
-                <span class="team-name">{{ match.away_team.name }}</span>
-              </div>
+              </form>
             </div>
+          </div>{# /collapse #}
 
-            <!-- Actions -->
-            <div class="d-flex gap-2 justify-content-center mt-3">
-              <button type="submit" class="btn-primary-custom">
-                <i class="bi bi-check-circle me-1"></i>Guardar Resultado
-              </button>
-              {% if match.is_finished %}
-              <button type="submit" name="clear_result" value="1" class="btn-outline-custom"
-                      data-confirm="¿Borrar el resultado de este partido? Se recalcularán los puntos.">
-                <i class="bi bi-x-circle me-1"></i>Borrar
-              </button>
-              {% endif %}
-            </div>
-          </form>
         </div>
+        {% endfor %}
+
       </div>
-      {% endfor %}
     </div>
+    {% endif %}{# /finished #}
+
+    {# Empty state when no matches at all #}
+    {% if not pending and not finished %}
+    <div class="text-center py-5 text-muted">
+      <div style="font-size:3rem;">📅</div>
+      <p class="mt-2">No hay partidos en esta fase.
+        <a href="{{ url_for('admin.matches', event_id=event.id, phase_id=selected_phase.id) }}">
+          Crear partidos →
+        </a>
+      </p>
+    </div>
+    {% endif %}
+
   {% else %}
     <div class="text-center py-5 text-muted">
-      <div style="font-size: 3rem;">📅</div>
+      <div style="font-size:3rem;">📅</div>
       <p class="mt-2">No hay partidos en esta fase.
-        <a href="{{ url_for('admin.matches', event_id=event.id, phase_id=selected_phase.id) }}">Crear partidos →</a>
+        <a href="{{ url_for('admin.matches', event_id=event.id, phase_id=selected_phase.id) }}">
+          Crear partidos →
+        </a>
       </p>
     </div>
   {% endif %}
 {% endif %}
+
+{# ── Styles ───────────────────────────────────────────────────── #}
+<style>
+/* ── KPI chips ─────────────────────────────────────── */
+.res-kpi {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  padding: .55rem 1rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+}
+.res-kpi-pending { background: rgba(220,53,69,.08);  border-color: rgba(220,53,69,.2); }
+.res-kpi-done    { background: rgba(25,135,84,.08);  border-color: rgba(25,135,84,.2); }
+.res-kpi-num {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.res-kpi-lbl {
+  font-size: .67rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+}
+.res-count-badge {
+  font-size: .75rem;
+  font-weight: 800;
+  padding: .2rem .65rem;
+  border-radius: 20px;
+}
+
+/* ── Common dividers & wrappers ────────────────────── */
+.res-divider { border-bottom: 1px solid var(--border); }
+.res-form-wrap { padding: .65rem 1rem; }
+.res-edit-inner {
+  background: rgba(13,27,42,.03);
+  border-top: 1px dashed var(--border);
+  padding: .65rem 1rem .5rem;
+}
+
+/* ── Chips & meta ──────────────────────────────────── */
+.res-chip {
+  display: inline-block;
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  background: rgba(13,27,42,.08);
+  color: var(--primary);
+  padding: .15rem .5rem;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.res-date {
+  font-size: .7rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.res-meta {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-shrink: 0;
+  min-width: 90px;
+}
+.res-meta-done { min-width: 80px; }
+
+/* ── Pending row layout ────────────────────────────── */
+.res-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+
+/* ── Team + score inputs ───────────────────────────── */
+.res-teams {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.res-team {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  flex: 1;
+  min-width: 80px;
+}
+.res-team-away { justify-content: flex-end; text-align: right; }
+.res-flag { font-size: 1.15rem; line-height: 1; flex-shrink: 0; }
+.res-tname {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+.res-score-wrap {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  flex-shrink: 0;
+}
+.res-sinput {
+  width: 44px !important;
+  text-align: center;
+  font-family: 'Outfit', sans-serif;
+  font-size: .95rem;
+  font-weight: 800;
+  padding: .3rem .2rem !important;
+}
+.res-btn-wrap { flex-shrink: 0; }
+.res-btn-save {
+  padding: .4rem .85rem !important;
+  font-size: .82rem !important;
+  white-space: nowrap;
+}
+
+/* ── Penalty row ───────────────────────────────────── */
+.res-penalty {
+  display: none;        /* hidden by default; JS or .res-penalty-show overrides */
+  align-items: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+  padding: .4rem 0 .2rem;
+  margin-top: .3rem;
+  border-top: 1px dashed rgba(212,175,55,.3);
+}
+.res-penalty-show { display: flex; }
+
+/* ── Finished row ──────────────────────────────────── */
+.res-done-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .6rem 1rem;
+  flex-wrap: wrap;
+}
+.res-done-result {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.res-done-tname {
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+}
+.res-done-tname-r { text-align: right; }
+.res-done-scorebox {
+  display: flex;
+  align-items: center;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 6px;
+  padding: .2rem .55rem;
+  gap: .2rem;
+  flex-shrink: 0;
+}
+.res-done-num {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.res-done-dash {
+  font-size: .75rem;
+  opacity: .5;
+}
+.res-pen-chip {
+  font-size: .65rem;
+  font-weight: 700;
+  background: rgba(212,175,55,.15);
+  color: #92400e;
+  border: 1px solid rgba(212,175,55,.35);
+  padding: .15rem .5rem;
+  border-radius: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.res-done-actions {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.res-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: .3rem .6rem !important;
+  font-size: .8rem !important;
+  border-radius: var(--radius-sm) !important;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  transition: var(--transition);
+  line-height: 1;
+}
+.res-icon-btn:hover { background: rgba(13,27,42,.06); }
+.res-btn-danger {
+  border-color: rgba(220,53,69,.35) !important;
+  color: #dc3545 !important;
+}
+.res-btn-danger:hover { background: rgba(220,53,69,.08) !important; }
+
+/* ── Responsive ────────────────────────────────────── */
+@media (max-width: 575px) {
+  .res-row { gap: .5rem; }
+  .res-meta { min-width: 0; width: 100%; }
+  .res-teams { gap: .35rem; }
+  .res-tname { max-width: 70px; font-size: .78rem; }
+  .res-sinput { width: 38px !important; font-size: .88rem; }
+  .res-btn-save { padding: .35rem .7rem !important; font-size: .78rem !important; }
+  .res-done-row { gap: .5rem; }
+  .res-done-tname { max-width: 65px; font-size: .78rem; }
+  .res-done-actions { width: 100%; justify-content: flex-end; }
+  .res-meta-done { width: 100%; }
+}
+</style>
+
 {% endblock %}
 
 {% block extra_js %}
 {{ super() }}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  // Toggle penalty section on score change
-  document.querySelectorAll('.match-card').forEach(card => {
-    const inputs = card.querySelectorAll('.score-input');
-    const penaltySection = card.querySelector('.penalty-section');
-    
-    if (penaltySection) {
-      const updatePenalty = () => {
-        const h = inputs[0].value;
-        const a = inputs[1].value;
-        if (h !== '' && a !== '' && h === a) {
-          penaltySection.style.display = 'block';
-        } else {
-          penaltySection.style.display = 'none';
-          const sel = penaltySection.querySelector('select');
-          if (sel) sel.value = '';
-        }
-      };
-      
-      inputs.forEach(input => input.addEventListener('input', updatePenalty));
-    }
+
+  // Phase filter navigation
+  const phaseSelect = document.getElementById('phase-filter-select');
+  if (phaseSelect) {
+    phaseSelect.addEventListener('change', function () {
+      window.location.href = '{{ url_for("admin.results", event_id=event.id) }}?phase_id=' + this.value;
+    });
+  }
+
+  // Toggle penalty section when scores are equal
+  // Works for both pending forms and collapsed edit forms
+  function initPenaltyToggle(wrap) {
+    const inputs = wrap.querySelectorAll('.score-input');
+    const penSection = wrap.querySelector('.penalty-section');
+    if (!penSection || inputs.length < 2) return;
+
+    const update = () => {
+      const h = inputs[0].value;
+      const a = inputs[1].value;
+      if (h !== '' && a !== '' && h === a) {
+        penSection.style.display = 'flex';
+      } else {
+        penSection.style.display = 'none';
+        const sel = penSection.querySelector('select');
+        if (sel) sel.value = '';
+      }
+    };
+
+    inputs[0].addEventListener('input', update);
+    inputs[1].addEventListener('input', update);
+  }
+
+  // Init for pending forms
+  document.querySelectorAll('.res-form-wrap').forEach(initPenaltyToggle);
+
+  // Re-init when a collapse edit form opens (Bootstrap collapse event)
+  document.querySelectorAll('.collapse').forEach(collapse => {
+    collapse.addEventListener('shown.bs.collapse', function () {
+      const wrap = this.querySelector('.res-form-wrap');
+      if (wrap) initPenaltyToggle(wrap);
+    });
   });
+
 });
 </script>
 {% endblock %}

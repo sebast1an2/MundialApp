@@ -1,0 +1,110 @@
+{% extends 'admin_base.html' %}
+{% block title %}Plantillas — Admin{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <h1 style="font-size: 1.8rem; margin: 0;">📋 Plantillas de Torneo</h1>
+  <a href="{{ url_for('admin.templates_new') }}" class="btn-primary-custom">
+    <i class="bi bi-plus-lg me-1"></i> Nueva Plantilla
+  </a>
+</div>
+
+<div class="alert d-flex gap-2 align-items-start mb-4"
+     style="background: rgba(99,102,241,.08); border: 1.5px solid rgba(99,102,241,.3); border-radius: var(--radius-sm);">
+  <i class="bi bi-info-circle-fill mt-1" style="color: var(--primary);"></i>
+  <div style="font-size: .88rem;">
+    Las plantillas definen la estructura reutilizable de un torneo: fases, orden y puntuación.
+    Al crear un nuevo evento puedes asociarlo a una plantilla para generar esa estructura automáticamente.
+  </div>
+</div>
+
+{% if templates %}
+<div class="row g-3">
+  {% for tmpl in templates %}
+  <div class="col-md-6 col-lg-4 fade-in-up">
+    <div class="card-custom h-100">
+      <div class="card-header-custom d-flex align-items-center justify-content-between">
+        <span style="font-size: 1.5rem;">{{ tmpl.logo_emoji }}</span>
+        <div class="d-flex gap-2 align-items-center">
+          {% if tmpl.is_active %}
+            <span class="event-status-badge active">activa</span>
+          {% else %}
+            <span class="event-status-badge" style="background: rgba(150,150,150,.15); color: #888;">inactiva</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card-body-custom">
+        <h5 style="font-size: 1.05rem; font-weight: 700; margin-bottom: .35rem;">{{ tmpl.name }}</h5>
+        <p class="text-muted mb-3" style="font-size: .83rem; min-height: 2.5rem;">
+          {{ tmpl.description[:100] if tmpl.description else 'Sin descripción.' }}
+        </p>
+
+        <!-- Metadata chips -->
+        <div class="d-flex flex-wrap gap-1 mb-3">
+          <span class="badge" style="background: rgba(99,102,241,.15); color: var(--primary); font-size: .72rem;">
+            <i class="bi bi-layers me-1"></i>{{ tmpl.phases.count() }} fase(s)
+          </span>
+          {% if tmpl.allows_group_stage %}
+          <span class="badge" style="background: rgba(34,197,94,.12); color: #16a34a; font-size: .72rem;">
+            <i class="bi bi-collection me-1"></i>Grupos
+          </span>
+          {% endif %}
+          {% if tmpl.allows_knockout %}
+          <span class="badge" style="background: rgba(239,68,68,.12); color: #dc2626; font-size: .72rem;">
+            <i class="bi bi-lightning-fill me-1"></i>Eliminatorias
+          </span>
+          {% endif %}
+          {% if tmpl.uses_bracket %}
+          <span class="badge" style="background: rgba(245,158,11,.12); color: #d97706; font-size: .72rem;">
+            <i class="bi bi-diagram-3 me-1"></i>Bracket
+          </span>
+          {% endif %}
+        </div>
+
+        <!-- Eventos que la usan -->
+        {% set ev_count = namespace(v=0) %}
+        {% for _ in range(1) %}
+          {# counted in route; not available here — kept minimal #}
+        {% endfor %}
+
+        <div class="d-flex gap-2 flex-wrap">
+          <a href="{{ url_for('admin.template_detail', template_id=tmpl.id) }}" class="btn-dark-custom">
+            <i class="bi bi-arrow-right me-1"></i>Gestionar
+          </a>
+          <a href="{{ url_for('admin.templates_edit', template_id=tmpl.id) }}" class="btn-outline-custom">
+            <i class="bi bi-pencil"></i>
+          </a>
+          <!-- Toggle activo/inactivo -->
+          <form method="POST" action="{{ url_for('admin.templates_toggle', template_id=tmpl.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm {% if tmpl.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}"
+                    title="{% if tmpl.is_active %}Desactivar{% else %}Activar{% endif %}">
+              <i class="bi {% if tmpl.is_active %}bi-eye-slash{% else %}bi-eye{% endif %}"></i>
+            </button>
+          </form>
+          <!-- Eliminar -->
+          <form method="POST" action="{{ url_for('admin.templates_delete', template_id=tmpl.id) }}" class="d-inline"
+                onsubmit="return confirmAction('¿Eliminar la plantilla &quot;{{ tmpl.name }}&quot;?\nLos eventos que la usan continuarán funcionando normalmente.', event);">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="text-center py-5">
+  <div style="font-size: 4rem;">📋</div>
+  <h3 class="mt-3">No hay plantillas creadas</h3>
+  <p class="text-muted">Las plantillas te permiten reutilizar la estructura de un torneo al crear nuevos eventos.</p>
+  <a href="{{ url_for('admin.templates_new') }}" class="btn-primary-custom">
+    <i class="bi bi-plus-lg me-1"></i> Crear primera plantilla
+  </a>
+</div>
+{% endif %}
+{% endblock %}

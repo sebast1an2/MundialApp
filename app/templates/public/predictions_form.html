@@ -41,6 +41,8 @@
         <h5 class="section-title mt-4">📅 Todos los partidos</h5>
       {% endif %}
 
+      {% set is_ko_phase = 'grupo' not in phase.name|lower %}
+
       <div class="match-card fade-in-up">
         <!-- Label -->
         {% if match.match_label %}
@@ -79,6 +81,35 @@
                      oninput="this.value = this.value < 0 ? 0 : this.value"
                      {% if match.is_locked %}disabled{% endif %}>
             </div>
+
+            {% if is_ko_phase and not match.is_locked %}
+            <!-- Selector de ganador en penales: solo fase eliminatoria, solo si hay empate -->
+            <div class="penalty-pred-section" id="pen_section_{{ match.id }}" style="display:none;">
+              <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+                          color:var(--gold);text-align:center;margin-bottom:.3rem;">
+                <i class="bi bi-trophy-fill me-1"></i>¿Quién avanza en penales?
+              </div>
+              <div class="d-flex gap-2 justify-content-center">
+                <label class="pen-opt" id="pen_home_lbl_{{ match.id }}">
+                  <input type="radio" name="penalty_winner_{{ match.id }}"
+                         value="{{ match.home_team_id }}"
+                         class="pen-radio" id="pen_home_{{ match.id }}">
+                  <span class="pen-team-btn">
+                    {{ match.home_team.flag_emoji }} {{ match.home_team.short_name or match.home_team.name }}
+                  </span>
+                </label>
+                <label class="pen-opt" id="pen_away_lbl_{{ match.id }}">
+                  <input type="radio" name="penalty_winner_{{ match.id }}"
+                         value="{{ match.away_team_id }}"
+                         class="pen-radio" id="pen_away_{{ match.id }}">
+                  <span class="pen-team-btn">
+                    {{ match.away_team.flag_emoji }} {{ match.away_team.short_name or match.away_team.name }}
+                  </span>
+                </label>
+              </div>
+            </div>
+            {% endif %}
+
             {% if match.is_locked %}
               <small class="text-danger fw-bold" style="font-size: .72rem;"><i class="bi bi-lock-fill"></i> Bloqueado</small>
             {% else %}
@@ -106,4 +137,57 @@
     </div>
   </form>
 </div>
+
+<style>
+.pen-opt { display:inline-flex; cursor:pointer; }
+.pen-opt .pen-radio { display:none; }
+.pen-team-btn {
+  display:inline-flex; align-items:center; gap:.35rem;
+  padding:.35rem .75rem; border-radius:20px;
+  font-size:.78rem; font-weight:700;
+  border: 2px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-muted);
+  transition: all .15s;
+  white-space: nowrap;
+}
+.pen-opt input:checked + .pen-team-btn {
+  border-color: var(--gold);
+  background: rgba(212,175,55,.12);
+  color: var(--primary);
+}
+.penalty-pred-section {
+  background: rgba(212,175,55,.06);
+  border: 1px solid rgba(212,175,55,.25);
+  border-radius: var(--radius-sm);
+  padding: .5rem .75rem;
+  width: 100%;
+}
+</style>
+
+{% block extra_js %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.score-input').forEach(input => {
+    input.addEventListener('input', () => {
+      const matchId = input.id.replace('home_', '').replace('away_', '');
+      const homeInput = document.getElementById('home_' + matchId);
+      const awayInput = document.getElementById('away_' + matchId);
+      const penSection = document.getElementById('pen_section_' + matchId);
+      if (!penSection || !homeInput || !awayInput) return;
+
+      const h = homeInput.value;
+      const a = awayInput.value;
+      if (h !== '' && a !== '' && h === a) {
+        penSection.style.display = 'block';
+      } else {
+        penSection.style.display = 'none';
+        penSection.querySelectorAll('input[type=radio]').forEach(r => r.checked = false);
+      }
+    });
+  });
+});
+</script>
+{% endblock %}
 {% endblock %}

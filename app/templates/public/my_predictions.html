@@ -43,10 +43,14 @@
         {% for item in pd.predictions %}
         {% set pred = item.prediction %}
         {% set match = item.match %}
+        {% set stype = item.score_type or '' %}
+        {% set is_exact  = 'exact_score'    in stype %}
+        {% set is_winner = 'correct_winner' in stype %}
+        {% set has_pen   = '+pen'           in stype %}
         <div class="col-12 col-md-6">
           <div class="match-card" style="
-            {% if item.score_type == 'exact_score' %}border-left: 4px solid #10b981;
-            {% elif item.score_type == 'correct_winner' %}border-left: 4px solid #f59e0b;
+            {% if is_exact %}border-left: 4px solid #10b981;
+            {% elif is_winner %}border-left: 4px solid #f59e0b;
             {% elif item.points == 0 and match.is_finished %}border-left: 4px solid #ef4444;
             {% else %}border-left: 4px solid var(--border);{% endif %}
           ">
@@ -58,10 +62,16 @@
                 </small>
               {% else %}<span></span>{% endif %}
               <!-- Points badge -->
-              {% if item.score_type == 'exact_score' %}
-                <span class="badge-exact">🎯 +{{ item.points }} pts</span>
-              {% elif item.score_type == 'correct_winner' %}
-                <span class="badge-winner">✅ +{{ item.points }} pt</span>
+              {% if is_exact %}
+                <div class="d-flex align-items-center gap-1">
+                  <span class="badge-exact">🎯 +{{ item.points }} pts</span>
+                  {% if has_pen %}<span style="font-size:.63rem;background:rgba(212,175,55,.2);color:#92400e;padding:.1rem .4rem;border-radius:10px;font-weight:700;">+pen ⚽</span>{% endif %}
+                </div>
+              {% elif is_winner %}
+                <div class="d-flex align-items-center gap-1">
+                  <span class="badge-winner">✅ +{{ item.points }} pt{{ 's' if item.points != 1 else '' }}</span>
+                  {% if has_pen %}<span style="font-size:.63rem;background:rgba(212,175,55,.2);color:#92400e;padding:.1rem .4rem;border-radius:10px;font-weight:700;">+pen ⚽</span>{% endif %}
+                </div>
               {% elif item.points == 0 and match.is_finished %}
                 <span class="badge-none">❌ 0 pts</span>
               {% elif not match.is_finished %}
@@ -72,12 +82,12 @@
             <!-- Teams + Scores -->
             <div class="match-teams">
               <div class="team-block">
-                <span class="team-flag">{{ match.home_team.flag_emoji }}</span>
-                <span class="team-name">{{ match.home_team.name }}</span>
+                <span class="team-flag">{{ match.home_team.flag_emoji if match.home_team else '❓' }}</span>
+                <span class="team-name">{{ match.home_team.name if match.home_team else 'TBD' }}</span>
               </div>
 
               <div class="d-flex flex-column align-items-center gap-1">
-                <!-- Prediction -->
+                <!-- Prediction score -->
                 <div class="d-flex align-items-center gap-1">
                   <span style="font-family:'Outfit',sans-serif;font-size:1.5rem;font-weight:800;color:var(--primary);">
                     {{ pred.home_pred }}
@@ -87,25 +97,38 @@
                     {{ pred.away_pred }}
                   </span>
                 </div>
+                <!-- Penalty prediction -->
+                {% if pred.predicted_penalty_winner_id %}
+                  {% if pred.predicted_penalty_winner_id == match.home_team_id and match.home_team %}
+                    <small style="font-size:.63rem;color:var(--text-muted);">⚽ {{ match.home_team.short_name or match.home_team.name }} clasifica</small>
+                  {% elif pred.predicted_penalty_winner_id == match.away_team_id and match.away_team %}
+                    <small style="font-size:.63rem;color:var(--text-muted);">⚽ {{ match.away_team.short_name or match.away_team.name }} clasifica</small>
+                  {% endif %}
+                {% endif %}
                 <small class="text-muted" style="font-size:.7rem;">tu predicción</small>
 
                 <!-- Real result -->
                 {% if match.is_finished %}
-                <div class="d-flex align-items-center gap-1 mt-1">
+                <div class="d-flex flex-column align-items-center gap-0 mt-1">
                   <span style="font-family:'Outfit',sans-serif;font-size:.9rem;font-weight:700;
-                    {% if item.score_type == 'exact_score' %}color:#10b981;
-                    {% elif item.score_type == 'correct_winner' %}color:#f59e0b;
-                    {% else %}color:#ef4444;{% endif %}">
+                    {% if is_exact %}color:#10b981;{% elif is_winner %}color:#f59e0b;{% else %}color:#ef4444;{% endif %}">
                     {{ match.home_score }}–{{ match.away_score }}
                   </span>
+                  {% if match.penalty_winner_id %}
+                    {% if match.penalty_winner_id == match.home_team_id and match.home_team %}
+                      <small style="font-size:.63rem;font-weight:700;color:var(--primary);">⚽ clasifica {{ match.home_team.short_name or match.home_team.name }}</small>
+                    {% elif match.penalty_winner_id == match.away_team_id and match.away_team %}
+                      <small style="font-size:.63rem;font-weight:700;color:var(--primary);">⚽ clasifica {{ match.away_team.short_name or match.away_team.name }}</small>
+                    {% endif %}
+                  {% endif %}
                 </div>
                 <small class="text-muted" style="font-size:.7rem;">resultado real</small>
                 {% endif %}
               </div>
 
               <div class="team-block">
-                <span class="team-flag">{{ match.away_team.flag_emoji }}</span>
-                <span class="team-name">{{ match.away_team.name }}</span>
+                <span class="team-flag">{{ match.away_team.flag_emoji if match.away_team else '❓' }}</span>
+                <span class="team-name">{{ match.away_team.name if match.away_team else 'TBD' }}</span>
               </div>
             </div>
           </div>

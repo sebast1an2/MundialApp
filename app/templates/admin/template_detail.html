@@ -1,0 +1,282 @@
+{% extends 'admin_base.html' %}
+{% block title %}{{ template.logo_emoji }} {{ template.name }} — Plantilla{% endblock %}
+
+{% block admin_content %}
+
+<!-- Header -->
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <a href="{{ url_for('admin.templates') }}" class="text-muted small">
+      <i class="bi bi-arrow-left me-1"></i>Plantillas
+    </a>
+    <h1 style="font-size: 1.8rem; margin: .25rem 0 0;">
+      {{ template.logo_emoji }} {{ template.name }}
+    </h1>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('admin.templates_edit', template_id=template.id) }}" class="btn-outline-custom">
+      <i class="bi bi-pencil me-1"></i>Editar
+    </a>
+    <form method="POST" action="{{ url_for('admin.templates_toggle', template_id=template.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-sm {% if template.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %} fw-bold px-3">
+        {% if template.is_active %}
+          <i class="bi bi-eye-slash me-1"></i>Desactivar
+        {% else %}
+          <i class="bi bi-eye me-1"></i>Activar
+        {% endif %}
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Info cards row -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="kpi-card">
+      <div class="kpi-icon blue">🎯</div>
+      <div>
+        <div class="kpi-value">{{ phases|length }}</div>
+        <div class="kpi-label">Fases</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="kpi-card">
+      <div class="kpi-icon green">🏆</div>
+      <div>
+        <div class="kpi-value">{{ events_using }}</div>
+        <div class="kpi-label">Evento(s) usando</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="kpi-card">
+      <div class="kpi-icon {% if template.is_active %}gold{% else %}red{% endif %}">
+        {% if template.is_active %}✅{% else %}🔒{% endif %}
+      </div>
+      <div>
+        <div class="kpi-value" style="font-size: 1rem;">{% if template.is_active %}Activa{% else %}Inactiva{% endif %}</div>
+        <div class="kpi-label">Estado</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="kpi-card">
+      <div class="kpi-icon blue">{{ template.logo_emoji }}</div>
+      <div>
+        <div class="kpi-value" style="font-size: .85rem; line-height: 1.3;">
+          {% if template.allows_group_stage %}Grupos {% endif %}
+          {% if template.allows_knockout %}· Elim.{% endif %}
+          {% if template.uses_bracket %}· Fixture{% endif %}
+        </div>
+        <div class="kpi-label">Estructura</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if template.description %}
+<div class="mb-4 text-muted" style="font-size: .9rem;">
+  <i class="bi bi-info-circle me-1"></i>{{ template.description }}
+</div>
+{% endif %}
+
+<div class="row g-4">
+
+  <!-- ── FASES ───────────────────────────────────────────────── -->
+  <div class="col-lg-6">
+    <!-- Formulario nueva fase -->
+    <div class="card-custom mb-3">
+      <div class="card-header-custom">
+        <i class="bi bi-plus-circle me-2"></i>Agregar Fase
+      </div>
+      <div class="card-body-custom">
+        <form method="POST" action="{{ url_for('admin.template_phases_new', template_id=template.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="mb-3">
+            <label class="form-label-custom">Nombre de la fase *</label>
+            <select name="name" class="form-control-custom" required>
+              <option value="">— Seleccionar —</option>
+              <option value="Fase de grupos">Fase de grupos</option>
+              <option value="Dieciseisavos">Dieciseisavos</option>
+              <option value="Octavos">Octavos</option>
+              <option value="Cuartos">Cuartos</option>
+              <option value="Semifinal">Semifinal</option>
+              <option value="Tercero y cuarto">Tercero y cuarto</option>
+              <option value="Final">Final</option>
+            </select>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-4">
+              <label class="form-label-custom">Orden</label>
+              <input type="number" name="phase_order" class="form-control-custom"
+                     value="{{ (phases|length) + 1 }}" min="1">
+            </div>
+            <div class="col-8">
+              <label class="form-label-custom">Tipo</label>
+              <select name="phase_type" class="form-control-custom">
+                <option value="group">Grupos</option>
+                <option value="knockout">Eliminatoria</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Campos preparatorios para automatización futura -->
+          <div class="row g-2 mb-3">
+            <div class="col-7">
+              <label class="form-label-custom" style="font-size:.78rem;">
+                Equipos que clasifican
+                <span class="badge ms-1" style="background:rgba(245,158,11,.2);color:#d97706;font-size:.6rem;">Futuro</span>
+              </label>
+              <input type="number" name="teams_qualify" class="form-control-custom"
+                     min="0" placeholder="Ej: 2 por grupo" style="font-size:.85rem;">
+            </div>
+            <div class="col-5 d-flex align-items-end pb-1">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="is_bracket_round" id="is_bracket_round">
+                <label class="form-check-label" for="is_bracket_round" style="font-size:.8rem;">
+                  Ronda de fixture
+                  <span class="badge ms-1" style="background:rgba(245,158,11,.2);color:#d97706;font-size:.6rem;">Futuro</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary-custom w-100 justify-content-center">
+            <i class="bi bi-plus-lg me-1"></i>Añadir Fase
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Lista de fases -->
+    <div class="card-custom">
+      <div class="card-header-custom">
+        <i class="bi bi-layers me-2"></i>Fases definidas ({{ phases|length }})
+      </div>
+      <div class="card-body-custom p-0">
+        {% if phases %}
+          {% for phase in phases %}
+          <div class="d-flex align-items-center justify-content-between px-3 py-2"
+               style="border-bottom: 1px solid var(--border);">
+            <div class="d-flex align-items-center gap-3">
+              <div style="width:34px;height:34px;background:var(--primary);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:.85rem;font-family:'Outfit',sans-serif;flex-shrink:0;">
+                {{ phase.phase_order }}
+              </div>
+              <div>
+                <div style="font-weight:600;font-size:.95rem;">{{ phase.name }}</div>
+                <div class="d-flex gap-1 mt-1 flex-wrap">
+                  <span class="badge" style="font-size:.67rem;background:{% if phase.phase_type == 'group' %}rgba(34,197,94,.12){% else %}rgba(239,68,68,.12){% endif %};color:{% if phase.phase_type == 'group' %}#16a34a{% else %}#dc2626{% endif %};">
+                    {{ 'Grupos' if phase.phase_type == 'group' else 'Eliminatoria' }}
+                  </span>
+                  {% if phase.teams_qualify %}
+                  <span class="badge" style="font-size:.67rem;background:rgba(99,102,241,.12);color:var(--primary);">
+                    {{ phase.teams_qualify }} clasifican
+                  </span>
+                  {% endif %}
+                  {% if phase.is_bracket_round %}
+                  <span class="badge" style="font-size:.67rem;background:rgba(245,158,11,.12);color:#d97706;">
+                    <i class="bi bi-diagram-3"></i> Fixture
+                  </span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            <form method="POST" action="{{ url_for('admin.template_phases_delete', phase_id=phase.id) }}"
+                  onsubmit="return confirmAction('¿Eliminar la fase &quot;{{ phase.name }}&quot; de la plantilla?', event);">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <div style="font-size:2rem;">🎯</div>
+            <p class="mt-2 mb-0 small">Sin fases. Añade la primera fase del torneo.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PUNTUACIÓN ─────────────────────────────────────────── -->
+  <div class="col-lg-6">
+    <div class="card-custom">
+      <div class="card-header-custom">
+        <i class="bi bi-sliders me-2"></i>Reglas de Puntuación
+      </div>
+      <div class="card-body-custom">
+        {% if scoring_configs %}
+          <p class="text-muted mb-3" style="font-size: .85rem;">
+            Estos valores se aplicarán automáticamente al crear un evento con esta plantilla.
+            El administrador podrá ajustarlos por evento después.
+          </p>
+          <form method="POST" action="{{ url_for('admin.template_scoring_update', template_id=template.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% for cfg in scoring_configs %}
+            <div class="card-custom mb-3"
+                 style="border: 2px solid {% if cfg.is_active %}var(--green-soft){% else %}var(--border){% endif %};">
+              <div class="card-body-custom">
+                <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+                  <div class="flex-grow-1">
+                    <h6 style="font-weight:700;font-size:.95rem;margin-bottom:.2rem;">
+                      {% if cfg.score_type == 'exact_score' %}🎯 Marcador Exacto
+                      {% elif cfg.score_type == 'correct_winner' %}✅ Ganador/Empate Correcto
+                      {% elif cfg.score_type == 'group_position' %}📊 Posición en Grupo
+                      {% else %}{{ cfg.score_type }}
+                      {% endif %}
+                    </h6>
+                    {% if cfg.description %}
+                    <p class="text-muted mb-2" style="font-size:.8rem;">{{ cfg.description }}</p>
+                    {% endif %}
+                    <div class="d-flex align-items-center gap-2">
+                      <input type="number" name="points_{{ cfg.score_type }}"
+                             class="form-control-custom" style="width:75px;"
+                             value="{{ cfg.points_value }}" min="0" max="100">
+                      <span class="text-muted small">pts</span>
+                    </div>
+                  </div>
+                  <div class="text-center">
+                    <label class="form-label-custom d-block" style="font-size:.75rem;">Activo</label>
+                    <div class="form-check form-switch" style="padding-left:2.5rem;">
+                      <input class="form-check-input" type="checkbox" role="switch"
+                             name="active_{{ cfg.score_type }}"
+                             {% if cfg.is_active %}checked{% endif %}
+                             style="width:2.5rem;height:1.3rem;cursor:pointer;">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn-primary-custom w-100 justify-content-center">
+              <i class="bi bi-check-circle me-1"></i>Guardar Puntuación
+            </button>
+          </form>
+        {% else %}
+          <div class="text-center py-4 text-muted">
+            <div style="font-size:2rem;">⚙️</div>
+            <p class="mt-2 mb-0 small">Sin configuración de puntuación. Recarga la página.</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Nota preparatoria -->
+    <div class="mt-3 p-3" style="background:rgba(245,158,11,.07);border:1.5px solid rgba(245,158,11,.3);border-radius:var(--radius-sm);">
+      <div style="font-size:.82rem;color:#92400e;">
+        <i class="bi bi-hourglass-split me-1"></i>
+        <strong>Preparado para futuras funciones:</strong>
+        Bracket visual, avance automático de equipos y clasificación entre fases.
+        La apertura/cierre de predicciones seguirá siendo manual por el administrador.
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -53,6 +53,14 @@
                  style="font-size: clamp(1.2rem, 5vw, 1.6rem); letter-spacing: 2px; min-width: 80px;">
               {{ match.home_score }} - {{ match.away_score }}
             </div>
+            {% if match.penalty_winner_id %}
+              {% set pen_winner = match.home_team if match.penalty_winner_id == match.home_team_id else match.away_team %}
+              <div class="text-center mt-1">
+                <span style="font-size:.7rem;font-weight:700;background:rgba(212,175,55,.15);color:#92400e;padding:.2rem .6rem;border-radius:12px;">
+                  ⚽ Clasifica {{ pen_winner.short_name or pen_winner.name if pen_winner else '?' }} (penales)
+                </span>
+              </div>
+            {% endif %}
             <div class="text-center mt-1">
               <span class="badge bg-success-subtle text-success border-0" style="font-size: .65rem; font-weight: 700;">RESULTADO OFICIAL</span>
             </div>
@@ -96,22 +104,43 @@
               </div>
             </div>
           </div>
-          <div class="d-flex align-items-center gap-2 flex-shrink-0">
-            <span style="font-size: .8rem; color: var(--text-muted);">{{ match.home_team.flag_emoji }}</span>
-            <span style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--primary); letter-spacing: 1px;">
-              {{ my_prediction.home_pred }} - {{ my_prediction.away_pred }}
-            </span>
-            <span style="font-size: .8rem; color: var(--text-muted);">{{ match.away_team.flag_emoji }}</span>
-            {% if match.is_finished %}
-              {# Badge de resultado propio #}
-              {% set pred_result = my_prediction.get_pred_result() %}
-              {% set real_result = match.get_result() %}
-              {% if my_prediction.home_pred == match.home_score and my_prediction.away_pred == match.away_score %}
-                <span class="badge-exact ms-1">🎯 Exacto</span>
-              {% elif pred_result == real_result %}
-                <span class="badge-winner ms-1">✅ Ganador</span>
-              {% else %}
-                <span class="badge-none ms-1">❌ Sin pts</span>
+          <div class="d-flex flex-column align-items-end gap-1 flex-shrink-0">
+            <div class="d-flex align-items-center gap-2">
+              <span style="font-size: .8rem; color: var(--text-muted);">{{ match.home_team.flag_emoji }}</span>
+              <span style="font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 800; color: var(--primary); letter-spacing: 1px;">
+                {{ my_prediction.home_pred }} - {{ my_prediction.away_pred }}
+              </span>
+              <span style="font-size: .8rem; color: var(--text-muted);">{{ match.away_team.flag_emoji }}</span>
+              {% if match.is_finished %}
+                {% set pred_result = my_prediction.get_pred_result() %}
+                {% set real_result = match.get_result() %}
+                {% if my_prediction.home_pred == match.home_score and my_prediction.away_pred == match.away_score %}
+                  <span class="badge-exact ms-1">🎯 Exacto</span>
+                {% elif pred_result == real_result %}
+                  <span class="badge-winner ms-1">✅ Ganador</span>
+                {% else %}
+                  <span class="badge-none ms-1">❌ Sin pts</span>
+                {% endif %}
+              {% endif %}
+            </div>
+            {# Penalty winner prediction #}
+            {% if my_prediction.predicted_penalty_winner_id %}
+              {% if my_prediction.predicted_penalty_winner_id == match.home_team_id %}
+                <small style="font-size:.68rem;color:var(--text-muted);">⚽ predije que clasifica {{ match.home_team.short_name or match.home_team.name }}
+                  {% if match.is_finished and match.penalty_winner_id == match.home_team_id %}
+                    <span style="color:#10b981;font-weight:700;">✓</span>
+                  {% elif match.is_finished %}
+                    <span style="color:#ef4444;font-weight:700;">✗</span>
+                  {% endif %}
+                </small>
+              {% elif my_prediction.predicted_penalty_winner_id == match.away_team_id %}
+                <small style="font-size:.68rem;color:var(--text-muted);">⚽ predije que clasifica {{ match.away_team.short_name or match.away_team.name }}
+                  {% if match.is_finished and match.penalty_winner_id == match.away_team_id %}
+                    <span style="color:#10b981;font-weight:700;">✓</span>
+                  {% elif match.is_finished %}
+                    <span style="color:#ef4444;font-weight:700;">✗</span>
+                  {% endif %}
+                </small>
               {% endif %}
             {% endif %}
           </div>

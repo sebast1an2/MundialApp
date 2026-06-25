@@ -24,6 +24,9 @@
     <a href="{{ url_for('admin.events') }}" class="nav-link">
       <i class="bi bi-trophy-fill"></i> Eventos
     </a>
+    <a href="{{ url_for('admin.templates') }}" class="nav-link">
+      <i class="bi bi-layout-text-sidebar-reverse"></i> Plantillas
+    </a>
 
     {% if event is defined and event %}
       <div class="sidebar-section" style="color: var(--gold); opacity: 1;">
@@ -32,9 +35,11 @@
       <a href="{{ url_for('admin.event_detail',   event_id=event.id) }}" class="nav-link">
         <i class="bi bi-grid-1x2"></i> Resumen
       </a>
+      {% if event.groups.count() > 0 %}
       <a href="{{ url_for('admin.groups',         event_id=event.id) }}" class="nav-link">
         <i class="bi bi-collection"></i> Grupos
       </a>
+      {% endif %}
       <a href="{{ url_for('admin.phases',         event_id=event.id) }}" class="nav-link">
         <i class="bi bi-layers"></i> Fases
       </a>
@@ -52,6 +57,9 @@
       </a>
       <a href="{{ url_for('admin.ranking',        event_id=event.id) }}" class="nav-link">
         <i class="bi bi-bar-chart-line-fill"></i> Ranking
+      </a>
+      <a href="{{ url_for('admin.bracket',       event_id=event.id) }}" class="nav-link">
+        <i class="bi bi-diagram-3-fill"></i> Fixture
       </a>
     {% endif %}
 

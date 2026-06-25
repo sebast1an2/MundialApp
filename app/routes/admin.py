@@ -2,11 +2,13 @@ from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, session)
 from app import db
 from app.models import (Team, Event, Group, GroupTeam, Phase,
-                        Match, Participant, Prediction, Score, ScoringConfig)
+                        Match, Participant, Prediction, Score, ScoringConfig,
+                        EventTemplate, TemplatePhase, TemplateScoringConfig)
 from app.routes.auth import require_admin
 from app.services.seeder import seed_teams
 from app.services.scoring import calculate_match_scores, recalculate_all_event_scores
 from app.services.standings import calculate_event_group_standings, get_best_third_place_teams
+from app.services.bracket import advance_bracket
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -114,18 +116,50 @@ def events():
 @require_admin
 def events_new():
     if request.method == 'POST':
+        template_id = request.form.get('template_id', type=int) or None
         event = Event(
             name=request.form['name'].strip(),
             tournament_type=request.form.get('tournament_type', 'world_cup'),
             description=request.form.get('description', '').strip(),
             logo_emoji=request.form.get('logo_emoji', '🏆').strip(),
+            template_id=template_id,
         )
         db.session.add(event)
-        db.session.flush()  # get event.id before commit
-        ScoringConfig.create_defaults(event.id)
-        flash(f'Evento "{event.name}" creado.', 'success')
+        db.session.flush()
+
+        template = EventTemplate.query.get(template_id) if template_id else None
+
+        # Scoring: use template values if defined, otherwise fall back to system defaults
+        template_scorings = template.scoring_configs.all() if template else []
+        if template_scorings:
+            for tc in template_scorings:
+                db.session.add(ScoringConfig(
+                    event_id=event.id, score_type=tc.score_type,
+                    points_value=tc.points_value, is_active=tc.is_active,
+                    description=tc.description,
+                ))
+        else:
+            for d in ScoringConfig._DEFAULTS:
+                db.session.add(ScoringConfig(event_id=event.id, **d))
+
+        # Phases: pre-populate from template if it has them
+        template_phases = template.get_phases_ordered() if template else []
+        for tp in template_phases:
+            db.session.add(Phase(
+                event_id=event.id, name=tp.name, phase_order=tp.phase_order,
+            ))
+
+        db.session.commit()
+
+        if template:
+            flash(f'Evento "{event.name}" creado con la plantilla "{template.name}".', 'success')
+        else:
+            flash(f'Evento "{event.name}" creado.', 'success')
         return redirect(url_for('admin.event_detail', event_id=event.id))
-    return render_template('admin/event_form.html', event=None)
+
+    active_templates = EventTemplate.query.filter_by(is_active=True)\
+                                          .order_by(EventTemplate.name).all()
+    return render_template('admin/event_form.html', event=None, templates=active_templates)
 
 
 @admin_bp.route('/events/<int:event_id>')
@@ -430,59 +464,127 @@ def phases_delete(phase_id):
 
 def get_available_teams_for_phase(event_id, phase):
     """
-    Returns a list of Team objects that are eligible to participate in the given phase.
-    Logic:
-    - Phase order 1 or name contains 'grupo': All teams assigned to groups in the event.
-    - Subsequent phases: Winners/Qualified teams from the previous phase.
+    Returns a list of Team objects eligible to participate in the given phase.
+    - Group phase ('grupo' in name): teams assigned to event groups.
+    - Knockout with no previous phase: ALL teams in catalog (knockout-only events).
+    - Knockout with group prev phase: qualified teams from standings.
+    - Knockout with knockout prev phase: winners from finished matches.
     """
     if not phase:
         return []
 
-    if phase.phase_order == 1 or 'grupo' in phase.name.lower():
+    # ── Group phase: teams come from event groups ──────────────────────────
+    if 'grupo' in phase.name.lower():
         groups = Group.query.filter_by(event_id=event_id).all()
         group_ids = [g.id for g in groups]
         if not group_ids:
             return []
         team_ids = [gt.team_id for gt in GroupTeam.query.filter(GroupTeam.group_id.in_(group_ids)).all()]
         return Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
-    
-    # Knockout: Previous phase winners
-    prev_phase = Phase.query.filter_by(event_id=event_id, phase_order=phase.phase_order - 1).first()
+
+    # ── Knockout phase ─────────────────────────────────────────────────────
+    prev_phase = Phase.query.filter_by(
+        event_id=event_id, phase_order=phase.phase_order - 1
+    ).first()
+
+    # No previous phase → knockout-only event (e.g. "16vos de final" as first phase).
+    # Allow admin to pick from the full team catalog.
     if not prev_phase:
-        return []
-    
+        return Team.query.order_by(Team.name).all()
+
     available_teams = []
-    if prev_phase.phase_order == 1 or 'grupo' in prev_phase.name.lower():
-        # From groups — 1st and 2nd place from every group
+
+    if 'grupo' in prev_phase.name.lower():
+        # Previous phase was groups → use standings to get qualified teams
         standings = calculate_event_group_standings(event_id)
         qualified_list = []
         for g_obj, g_standings in standings.items():
             for row in g_standings[:2]:
                 qualified_list.append(row['team'])
 
-        # Best third-place teams when the event has this feature enabled
         from app.models import Event as _Event
         _event = _Event.query.get(event_id)
         if _event and _event.qualifies_third_place and (_event.third_place_slots or 0) > 0:
             best_thirds = get_best_third_place_teams(event_id, _event.third_place_slots)
             qualified_list.extend(best_thirds)
 
-        # Unique and sorted alphabetically
         team_ids = list(set([t.id for t in qualified_list]))
         available_teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
     else:
-        # From knockout
-        winners_ids = []
-        prev_matches = Match.query.filter_by(phase_id=prev_phase.id, is_finished=True).all()
-        for m in prev_matches:
-            res = m.get_result()
-            if res == 'home':
-                winners_ids.append(m.home_team_id)
-            elif res == 'away':
-                winners_ids.append(m.away_team_id)
-        if winners_ids:
-            available_teams = Team.query.filter(Team.id.in_(list(set(winners_ids)))).order_by(Team.name).all()
-            
+        # Previous phase was also knockout.
+        #
+        # Priority 1 — Fixture connections already configured for THIS phase:
+        #   Read home_source_outcome / away_source_outcome from existing matches
+        #   in this phase.  If a slot needs 'winner' → include winners from the
+        #   source match.  If it needs 'loser' → include losers.
+        #   This correctly separates Final (winner slots) from 3rd/4th (loser slots).
+        #
+        # Priority 2 — No Fixture connections yet (fallback):
+        #   Show ALL teams that played in the previous phase so the admin can
+        #   pick manually.  advance_bracket is unaffected — it uses the FK links
+        #   directly and never calls this function.
+
+        this_phase_matches = Match.query.filter_by(phase_id=phase.id).all()
+        linked_source_ids  = set()
+        needs_winner       = False
+        needs_loser        = False
+
+        for cm in this_phase_matches:
+            if cm.home_source_match_id:
+                linked_source_ids.add(cm.home_source_match_id)
+                if (cm.home_source_outcome or 'winner') == 'loser':
+                    needs_loser = True
+                else:
+                    needs_winner = True
+            if cm.away_source_match_id:
+                linked_source_ids.add(cm.away_source_match_id)
+                if (cm.away_source_outcome or 'winner') == 'loser':
+                    needs_loser = True
+                else:
+                    needs_winner = True
+
+        all_team_ids = set()
+
+        if linked_source_ids:
+            # Fixture-guided: collect teams from the exact source matches
+            source_matches = Match.query.filter(Match.id.in_(linked_source_ids)).all()
+            for m in source_matches:
+                if not m.is_finished:
+                    # Match pending — both teams are potential candidates
+                    if m.home_team_id: all_team_ids.add(m.home_team_id)
+                    if m.away_team_id: all_team_ids.add(m.away_team_id)
+                else:
+                    result = m.get_result()
+                    w = m.home_team_id if result == 'home' else (
+                        m.away_team_id if result == 'away' else None)
+                    l = m.away_team_id if result == 'home' else (
+                        m.home_team_id if result == 'away' else None)
+                    if needs_winner and w: all_team_ids.add(w)
+                    if needs_loser  and l: all_team_ids.add(l)
+        else:
+            # No Fixture links yet — show participants from prev phase.
+            # Also walk one level further back: if the prev_phase itself was
+            # fed by loser-connections (e.g. 3ro/4to between Semis and Final),
+            # include the teams from those upstream source matches too, so the
+            # admin can still pick the winners for the Final.
+            prev_matches = Match.query.filter_by(phase_id=prev_phase.id).all()
+            upstream_source_ids = set()
+            for m in prev_matches:
+                if m.home_team_id: all_team_ids.add(m.home_team_id)
+                if m.away_team_id: all_team_ids.add(m.away_team_id)
+                if m.home_source_match_id: upstream_source_ids.add(m.home_source_match_id)
+                if m.away_source_match_id: upstream_source_ids.add(m.away_source_match_id)
+
+            if upstream_source_ids:
+                for m in Match.query.filter(Match.id.in_(upstream_source_ids)).all():
+                    if m.home_team_id: all_team_ids.add(m.home_team_id)
+                    if m.away_team_id: all_team_ids.add(m.away_team_id)
+
+        if all_team_ids:
+            available_teams = Team.query.filter(
+                Team.id.in_(list(all_team_ids))
+            ).order_by(Team.name).all()
+
     return available_teams
 
 
@@ -514,7 +616,7 @@ def matches(event_id):
     
     if selected_phase:
         available_teams = get_available_teams_for_phase(event_id, selected_phase)
-        is_knockout = not (selected_phase.phase_order == 1 or 'grupo' in selected_phase.name.lower())
+        is_knockout = 'grupo' not in selected_phase.name.lower()
 
     # Map teams to groups (for the JS filter in group phase)
     team_group_map = {}
@@ -522,6 +624,16 @@ def matches(event_id):
         all_gts = GroupTeam.query.filter(GroupTeam.group_id.in_([g.id for g in groups_list])).all()
         for gt in all_gts:
             team_group_map[gt.team_id] = gt.group_id
+
+    # Bracket infrastructure: matches from the previous phase available as sources
+    bracket_source_matches = []
+    if is_knockout and selected_phase:
+        prev_phase = Phase.query.filter_by(
+            event_id=event_id, phase_order=selected_phase.phase_order - 1
+        ).first()
+        if prev_phase:
+            bracket_source_matches = Match.query.filter_by(phase_id=prev_phase.id)\
+                .order_by(Match.bracket_position, Match.match_date).all()
 
     return render_template('admin/matches.html',
                            event=event,
@@ -531,31 +643,32 @@ def matches(event_id):
                            groups=groups_list,
                            all_teams=available_teams,
                            team_group_map=team_group_map,
-                           is_knockout=is_knockout)
+                           is_knockout=is_knockout,
+                           bracket_source_matches=bracket_source_matches)
 
 
 @admin_bp.route('/events/<int:event_id>/matches/new', methods=['POST'])
 @require_admin
 def matches_new(event_id):
-    phase_id = request.form.get('phase_id', type=int)
-    home_id = request.form.get('home_team_id', type=int)
-    away_id = request.form.get('away_team_id', type=int)
-    group_id = request.form.get('group_id', type=int) or None
+    phase_id       = request.form.get('phase_id',       type=int)
+    home_id        = request.form.get('home_team_id',   type=int) or None
+    away_id        = request.form.get('away_team_id',   type=int) or None
+    group_id       = request.form.get('group_id',       type=int) or None
     match_date_str = request.form.get('match_date', '').strip()
 
+    # Bracket infrastructure fields (all optional)
+    home_source_id      = request.form.get('home_source_match_id', type=int) or None
+    away_source_id      = request.form.get('away_source_match_id', type=int) or None
+    home_source_outcome = request.form.get('home_source_outcome') or 'winner'
+    away_source_outcome = request.form.get('away_source_outcome') or 'winner'
+    bracket_position    = request.form.get('bracket_position',    type=int) or None
+
     phase = Phase.query.get(phase_id)
-    is_group_phase = ('grupo' in phase.name.lower()) or (phase.phase_order == 1)
+    if not phase:
+        flash('Fase no encontrada.', 'danger')
+        return redirect(url_for('admin.matches', event_id=event_id))
 
-    if is_group_phase and not group_id:
-        flash('El grupo es obligatorio para esta fase.', 'danger')
-        return redirect(url_for('admin.matches', event_id=event_id, phase_id=phase_id))
-
-    label = ''
-    if group_id:
-        group = Group.query.get(group_id)
-        label = f'Grupo {group.name}'
-    else:
-        label = phase.name
+    is_group_phase = 'grupo' in phase.name.lower()
 
     from datetime import datetime as dt
     match_date = None
@@ -565,29 +678,60 @@ def matches_new(event_id):
         except ValueError:
             pass
 
-    if not phase_id or not home_id or not away_id:
-        flash('Fase, equipo local y visitante son obligatorios.', 'danger')
-    elif home_id == away_id:
-        flash('El equipo local y visitante no pueden ser el mismo.', 'danger')
+    if group_id:
+        group = Group.query.get(group_id)
+        label = f'Grupo {group.name}' if group else phase.name
     else:
-        # Security check: Are these teams available for this phase?
+        label = phase.name
+
+    # ── Validaciones ──────────────────────────────────────────────────────────
+    if is_group_phase:
+        # Comportamiento original: grupo y ambos equipos obligatorios
+        if not group_id:
+            flash('El grupo es obligatorio para esta fase.', 'danger')
+            return redirect(url_for('admin.matches', event_id=event_id, phase_id=phase_id))
+        if not home_id or not away_id:
+            flash('Fase de grupos: los equipos local y visitante son obligatorios.', 'danger')
+            return redirect(url_for('admin.matches', event_id=event_id, phase_id=phase_id))
+
+    # Mismo equipo en ambos slots solo aplica si están los dos definidos
+    if home_id and away_id and home_id == away_id:
+        flash('El equipo local y visitante no pueden ser el mismo.', 'danger')
+        return redirect(url_for('admin.matches', event_id=event_id, phase_id=phase_id))
+
+    # Validación de disponibilidad de equipos: solo si ambos están presentes
+    if home_id and away_id:
         available = get_available_teams_for_phase(event_id, phase)
         avail_ids = [t.id for t in available]
         if home_id not in avail_ids or away_id not in avail_ids:
             flash('Uno de los equipos seleccionados no es válido para esta fase (no ha clasificado).', 'danger')
-        else:
-            # Additional check: if group_id is provided, both teams must belong to that group
-            if group_id:
-                group_teams = [gt.team_id for gt in GroupTeam.query.filter_by(group_id=group_id).all()]
-                if home_id not in group_teams or away_id not in group_teams:
-                    flash('Error: Ambos equipos deben pertenecer al grupo seleccionado.', 'danger')
-                    return redirect(url_for('admin.matches', event_id=event_id, phase_id=phase_id))
+            return redirect(url_for('admin.matches', event_id=event_id, phase_id=phase_id))
+        if group_id:
+            group_team_ids = [gt.team_id for gt in GroupTeam.query.filter_by(group_id=group_id).all()]
+            if home_id not in group_team_ids or away_id not in group_team_ids:
+                flash('Error: Ambos equipos deben pertenecer al grupo seleccionado.', 'danger')
+                return redirect(url_for('admin.matches', event_id=event_id, phase_id=phase_id))
 
-            m = Match(phase_id=phase_id, home_team_id=home_id, away_team_id=away_id,
-                      group_id=group_id, match_label=label, match_date=match_date)
-            db.session.add(m)
-            db.session.commit()
-            flash('Partido creado correctamente.', 'success')
+    m = Match(
+        phase_id=phase_id,
+        home_team_id=home_id,
+        away_team_id=away_id,
+        group_id=group_id,
+        match_label=label,
+        match_date=match_date,
+        home_source_match_id=home_source_id,
+        away_source_match_id=away_source_id,
+        home_source_outcome=home_source_outcome,
+        away_source_outcome=away_source_outcome,
+        bracket_position=bracket_position,
+    )
+    db.session.add(m)
+    db.session.commit()
+
+    if home_id and away_id:
+        flash('Partido creado correctamente.', 'success')
+    else:
+        flash('Slot de bracket creado (TBD). Los equipos se completarán al definirse los clasificados.', 'success')
 
     return redirect(url_for('admin.matches', event_id=event_id, phase_id=phase_id))
 
@@ -633,7 +777,10 @@ def results(event_id):
         phase_id = selected_phase.id
 
     if selected_phase:
+        # Excluir partidos TBD (sin equipos definidos) — no se puede cargar resultado en ellos
         matches_list = Match.query.filter_by(phase_id=selected_phase.id)\
+                                  .filter(Match.home_team_id.isnot(None),
+                                          Match.away_team_id.isnot(None))\
                                   .order_by(Match.match_date).all()
 
     return render_template('admin/results.html',
@@ -655,6 +802,10 @@ def matches_result(match_id):
     event_id = match.phase.event_id
     phase_id = match.phase_id
 
+    if not match.home_team_id or not match.away_team_id:
+        flash('No se puede registrar resultado: los equipos de este partido aún no están definidos (TBD).', 'danger')
+        return redirect(url_for('admin.results', event_id=event_id, phase_id=phase_id))
+
     if match.phase.is_prediction_open:
         flash('No puedes ingresar resultados mientras la fase de predicciones esté abierta.', 'danger')
         return redirect(url_for('admin.results', event_id=event_id, phase_id=phase_id))
@@ -673,7 +824,23 @@ def matches_result(match_id):
         match.is_finished = True
         db.session.commit()
         updated = calculate_match_scores(match_id)
-        flash(f'Resultado guardado. {updated} predicciones puntuadas.', 'success')
+
+        # Bracket advancement — only fires when bracket source links exist;
+        # legacy events without bracket config are completely unaffected.
+        adv = advance_bracket(match)
+        if adv['slots_filled'] > 0:
+            bracket_msg = (
+                f' {adv["slots_filled"]} equipo(s) avanzaron automáticamente en el bracket.'
+            )
+        elif adv['skipped_draw'] > 0:
+            bracket_msg = (
+                ' Avance pendiente: el partido terminó en empate — '
+                'ingresa el ganador de penales para avanzar el bracket.'
+            )
+        else:
+            bracket_msg = ''
+
+        flash(f'Resultado guardado. {updated} predicciones puntuadas.{bracket_msg}', 'success')
     else:
         flash('Debes ingresar ambos marcadores.', 'danger')
 
@@ -687,6 +854,19 @@ def matches_result(match_id):
 def scoring_config(event_id):
     event = Event.query.get_or_404(event_id)
     configs = ScoringConfig.query.filter_by(event_id=event_id).all()
+
+    # Auto-seed correct_penalty_winner for events created before this feature existed
+    existing_types = {c.score_type for c in configs}
+    if 'correct_penalty_winner' not in existing_types:
+        db.session.add(ScoringConfig(
+            event_id=event_id,
+            score_type='correct_penalty_winner',
+            points_value=1,
+            is_active=True,
+            description='Bonus: adivinaste qué equipo clasifica en penales (solo en empates de eliminatoria)',
+        ))
+        db.session.commit()
+        configs = ScoringConfig.query.filter_by(event_id=event_id).all()
 
     if request.method == 'POST':
         for cfg in configs:
@@ -827,3 +1007,240 @@ def ranking(event_id):
                                                  Participant.created_at).all()
     return render_template('admin/ranking.html',
                            event=event, participants=all_participants)
+
+
+# ─── TEMPLATES ───────────────────────────────────────────────────────────────
+
+@admin_bp.route('/templates')
+@require_admin
+def templates():
+    all_templates = EventTemplate.query.order_by(EventTemplate.created_at.desc()).all()
+    return render_template('admin/templates.html', templates=all_templates)
+
+
+@admin_bp.route('/templates/new', methods=['GET', 'POST'])
+@require_admin
+def templates_new():
+    if request.method == 'POST':
+        template = EventTemplate(
+            name=request.form['name'].strip(),
+            description=request.form.get('description', '').strip(),
+            logo_emoji=request.form.get('logo_emoji', '📋').strip(),
+            uses_bracket=bool(request.form.get('uses_bracket')),
+            allows_group_stage=bool(request.form.get('allows_group_stage')),
+            allows_knockout=bool(request.form.get('allows_knockout')),
+        )
+        db.session.add(template)
+        db.session.flush()
+        TemplateScoringConfig.create_defaults(template.id)
+        flash(f'Plantilla "{template.name}" creada con puntuación por defecto.', 'success')
+        return redirect(url_for('admin.template_detail', template_id=template.id))
+    return render_template('admin/template_form.html', template=None)
+
+
+@admin_bp.route('/templates/<int:template_id>')
+@require_admin
+def template_detail(template_id):
+    template = EventTemplate.query.get_or_404(template_id)
+    phases = template.get_phases_ordered()
+    scoring_configs = template.scoring_configs.all()
+    events_using = Event.query.filter_by(template_id=template_id).count()
+    return render_template('admin/template_detail.html',
+                           template=template,
+                           phases=phases,
+                           scoring_configs=scoring_configs,
+                           events_using=events_using)
+
+
+@admin_bp.route('/templates/<int:template_id>/edit', methods=['GET', 'POST'])
+@require_admin
+def templates_edit(template_id):
+    template = EventTemplate.query.get_or_404(template_id)
+    if request.method == 'POST':
+        template.name = request.form['name'].strip()
+        template.description = request.form.get('description', '').strip()
+        template.logo_emoji = request.form.get('logo_emoji', '📋').strip()
+        template.is_active = bool(request.form.get('is_active'))
+        template.uses_bracket = bool(request.form.get('uses_bracket'))
+        template.allows_group_stage = bool(request.form.get('allows_group_stage'))
+        template.allows_knockout = bool(request.form.get('allows_knockout'))
+        db.session.commit()
+        flash('Plantilla actualizada.', 'success')
+        return redirect(url_for('admin.template_detail', template_id=template_id))
+    return render_template('admin/template_form.html', template=template)
+
+
+@admin_bp.route('/templates/<int:template_id>/toggle', methods=['POST'])
+@require_admin
+def templates_toggle(template_id):
+    template = EventTemplate.query.get_or_404(template_id)
+    template.is_active = not template.is_active
+    db.session.commit()
+    state = 'activada' if template.is_active else 'desactivada'
+    flash(f'Plantilla "{template.name}" {state}.', 'success')
+    return redirect(url_for('admin.templates'))
+
+
+@admin_bp.route('/templates/<int:template_id>/delete', methods=['POST'])
+@require_admin
+def templates_delete(template_id):
+    template = EventTemplate.query.get_or_404(template_id)
+    name = template.name
+    events_count = Event.query.filter_by(template_id=template_id).count()
+    # ON DELETE SET NULL in the DB handles the FK on events automatically
+    db.session.delete(template)
+    db.session.commit()
+    if events_count:
+        flash(f'Plantilla "{name}" eliminada. Los {events_count} evento(s) asociados continúan funcionando normalmente.', 'info')
+    else:
+        flash(f'Plantilla "{name}" eliminada.', 'info')
+    return redirect(url_for('admin.templates'))
+
+
+# ── Template phases ───────────────────────────────────────────────────────────
+
+@admin_bp.route('/templates/<int:template_id>/phases', methods=['POST'])
+@require_admin
+def template_phases_new(template_id):
+    template = EventTemplate.query.get_or_404(template_id)
+    name = request.form.get('name', '').strip()
+    order = request.form.get('phase_order', type=int, default=1)
+    phase_type = request.form.get('phase_type', 'group')
+    teams_qualify = request.form.get('teams_qualify', type=int) or None
+    is_bracket_round = bool(request.form.get('is_bracket_round'))
+
+    if not name:
+        flash('El nombre de la fase es requerido.', 'danger')
+    else:
+        db.session.add(TemplatePhase(
+            template_id=template_id, name=name, phase_order=order,
+            phase_type=phase_type, teams_qualify=teams_qualify,
+            is_bracket_round=is_bracket_round,
+        ))
+        db.session.commit()
+        flash(f'Fase "{name}" añadida a la plantilla.', 'success')
+    return redirect(url_for('admin.template_detail', template_id=template_id))
+
+
+@admin_bp.route('/template-phases/<int:phase_id>/delete', methods=['POST'])
+@require_admin
+def template_phases_delete(phase_id):
+    phase = TemplatePhase.query.get_or_404(phase_id)
+    template_id = phase.template_id
+    name = phase.name
+    db.session.delete(phase)
+    db.session.commit()
+    flash(f'Fase "{name}" eliminada de la plantilla.', 'info')
+    return redirect(url_for('admin.template_detail', template_id=template_id))
+
+
+# ─── BRACKET CONFIG ──────────────────────────────────────────────────────────
+
+@admin_bp.route('/events/<int:event_id>/bracket')
+@require_admin
+def bracket(event_id):
+    event = Event.query.get_or_404(event_id)
+    all_phases = Phase.query.filter_by(event_id=event_id)\
+                            .order_by(Phase.phase_order).all()
+
+    # Knockout phases: all phases not labeled as group stage
+    ko_phases = [p for p in all_phases if 'grupo' not in p.name.lower()]
+
+    if not ko_phases:
+        return render_template('admin/bracket.html',
+                               event=event, phase_data=[], match_by_id={}, teams_by_id={})
+
+    ko_phase_ids    = [p.id for p in ko_phases]
+    phase_order_by_id = {p.id: p.phase_order for p in ko_phases}
+    phase_name_by_id  = {p.id: p.name        for p in ko_phases}
+
+    # Load all knockout matches in one query
+    all_ko_matches = Match.query\
+        .filter(Match.phase_id.in_(ko_phase_ids))\
+        .order_by(Match.phase_id, Match.bracket_position, Match.match_date)\
+        .all()
+    match_by_id = {m.id: m for m in all_ko_matches}
+
+    # Batch-load teams referenced in knockout matches (avoid N+1)
+    team_ids = {m.home_team_id for m in all_ko_matches if m.home_team_id} | \
+               {m.away_team_id for m in all_ko_matches if m.away_team_id}
+    teams_by_id = {t.id: t for t in Team.query.filter(Team.id.in_(team_ids)).all()} \
+                  if team_ids else {}
+
+    def _team_short(team_id):
+        t = teams_by_id.get(team_id)
+        if not t:
+            return 'TBD'
+        return t.short_name or t.name[:3].upper()
+
+    def _match_opt_label(m):
+        home = _team_short(m.home_team_id)
+        away = _team_short(m.away_team_id)
+        lbl  = m.match_label or f'#{m.id}'
+        return f'{phase_name_by_id.get(m.phase_id, "?")} · {lbl} ({home} vs {away})'
+
+    # Organize data per phase
+    matches_by_phase_id = {}
+    for m in all_ko_matches:
+        matches_by_phase_id.setdefault(m.phase_id, []).append(m)
+
+    phase_data = []
+    for phase in ko_phases:
+        phase_matches = sorted(
+            matches_by_phase_id.get(phase.id, []),
+            key=lambda m: (m.bracket_position or 9999, str(m.match_date or ''))
+        )
+        # Source options: knockout matches from phases with LOWER phase_order
+        source_opts = [
+            {'id': m.id, 'label': _match_opt_label(m)}
+            for m in all_ko_matches
+            if phase_order_by_id.get(m.phase_id, 0) < phase.phase_order
+        ]
+        source_opts.sort(key=lambda o: o['label'])
+
+        phase_data.append({
+            'phase':       phase,
+            'matches':     phase_matches,
+            'source_opts': source_opts,
+            'teams_by_id': teams_by_id,
+        })
+
+    return render_template('admin/bracket.html',
+                           event=event,
+                           phase_data=phase_data,
+                           match_by_id=match_by_id,
+                           teams_by_id=teams_by_id)
+
+
+@admin_bp.route('/matches/<int:match_id>/bracket-link', methods=['POST'])
+@require_admin
+def bracket_link_save(match_id):
+    match = Match.query.get_or_404(match_id)
+    event_id = match.phase.event_id
+
+    match.home_source_match_id = request.form.get('home_source_match_id', type=int) or None
+    match.home_source_outcome  = request.form.get('home_source_outcome')  or 'winner'
+    match.away_source_match_id = request.form.get('away_source_match_id', type=int) or None
+    match.away_source_outcome  = request.form.get('away_source_outcome')  or 'winner'
+    match.bracket_position     = request.form.get('bracket_position',     type=int) or None
+
+    db.session.commit()
+    label = match.match_label or f'Partido #{match.id}'
+    flash(f'Conexiones de "{label}" actualizadas.', 'success')
+    return redirect(url_for('admin.bracket', event_id=event_id))
+
+
+# ── Template scoring ──────────────────────────────────────────────────────────
+
+@admin_bp.route('/templates/<int:template_id>/scoring', methods=['POST'])
+@require_admin
+def template_scoring_update(template_id):
+    template = EventTemplate.query.get_or_404(template_id)
+    configs = TemplateScoringConfig.query.filter_by(template_id=template_id).all()
+    for cfg in configs:
+        cfg.points_value = request.form.get(f'points_{cfg.score_type}', type=int,
+                                            default=cfg.points_value)
+        cfg.is_active = bool(request.form.get(f'active_{cfg.score_type}'))
+    db.session.commit()
+    flash('Configuración de puntuación de la plantilla actualizada.', 'success')
+    return redirect(url_for('admin.template_detail', template_id=template_id))

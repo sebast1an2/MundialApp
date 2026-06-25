@@ -2,7 +2,7 @@ from flask import (Blueprint, render_template, request, redirect,
                    url_for, flash, session)
 from app import db
 from app.models import (Event, Phase, Match, Participant,
-                        Prediction, Score, Group)
+                        Prediction, Score, Group, Team)
 from app.services.standings import calculate_event_group_standings, calculate_top_scoring_teams
 
 public_bp = Blueprint('public', __name__)
@@ -74,6 +74,9 @@ def event_detail(event_id):
                      .order_by(Match.match_date)
                      .all())
 
+    # Bracket available when there is at least one non-group knockout phase
+    has_bracket = any('grupo' not in p.name.lower() for p in phases)
+
     return render_template('public/event.html',
                            event=event,
                            phases=phases,
@@ -86,7 +89,8 @@ def event_detail(event_id):
                            all_matches=all_matches,
                            top_teams=top_teams,
                            today_matches=today_matches,
-                           now=_now)
+                           now=_now,
+                           has_bracket=has_bracket)
 
 
 # ─── VALIDATE PARTICIPANT (GATEKEEPER) ────────────────────────────────────────
@@ -247,12 +251,16 @@ def save_predictions(event_id):
             errors.append(f'Predicción inválida para {match.home_team.name} vs {match.away_team.name}')
             continue
 
+        # Ganador en penales (solo relevante en empate dentro de fase eliminatoria)
+        penalty_pred = request.form.get(f'penalty_winner_{match.id}', type=int) or None
+
         pred = Prediction(
             participant_id=participant.id,
             match_id=match.id,
             phase_id=phase_id,
             home_pred=home_pred,
             away_pred=away_pred,
+            predicted_penalty_winner_id=penalty_pred,
         )
         db.session.add(pred)
         saved += 1
@@ -436,6 +444,62 @@ def group_standings(event_id):
                            standings_by_group=standings_by_group)
 
 
+# ─── PUBLIC BRACKET ───────────────────────────────────────────────────────────
+
+@public_bp.route('/evento/<int:event_id>/bracket')
+def bracket_public(event_id):
+    event = Event.query.get_or_404(event_id)
+    participant_id = session.get(f'participant_event_{event_id}')
+    participant = Participant.query.get(participant_id) if participant_id else None
+
+    all_phases = Phase.query.filter_by(event_id=event_id)\
+                            .order_by(Phase.phase_order).all()
+
+    # Knockout phases only (exclude group stage)
+    ko_phases = [p for p in all_phases if 'grupo' not in p.name.lower()]
+
+    if not ko_phases:
+        flash('Este evento no tiene fases eliminatorias con bracket configurado.', 'info')
+        return redirect(url_for('public.event_detail', event_id=event_id))
+
+    ko_phase_ids = [p.id for p in ko_phases]
+
+    # Load all knockout matches in one query
+    all_ko_matches = (
+        Match.query
+        .filter(Match.phase_id.in_(ko_phase_ids))
+        .order_by(Match.phase_id, Match.bracket_position, Match.match_date)
+        .all()
+    )
+    match_by_id = {m.id: m for m in all_ko_matches}
+
+    # Batch-load teams (avoid N+1)
+    team_ids = ({m.home_team_id for m in all_ko_matches if m.home_team_id} |
+                {m.away_team_id for m in all_ko_matches if m.away_team_id})
+    teams_by_id = {t.id: t for t in Team.query.filter(Team.id.in_(team_ids)).all()} \
+                  if team_ids else {}
+
+    # Organize by phase
+    matches_by_phase_id = {}
+    for m in all_ko_matches:
+        matches_by_phase_id.setdefault(m.phase_id, []).append(m)
+
+    phase_data = []
+    for phase in ko_phases:
+        phase_matches = sorted(
+            matches_by_phase_id.get(phase.id, []),
+            key=lambda m: (m.bracket_position or 9999, str(m.match_date or ''))
+        )
+        phase_data.append({'phase': phase, 'matches': phase_matches})
+
+    return render_template('public/bracket.html',
+                           event=event,
+                           participant=participant,
+                           phase_data=phase_data,
+                           match_by_id=match_by_id,
+                           teams_by_id=teams_by_id)
+
+
 # ─── MATCH PREDICTIONS DETAILS ────────────────────────────────────────────────
 
 @public_bp.route('/evento/<int:event_id>/partido/<int:match_id>/aciertos')
@@ -495,9 +559,9 @@ def match_predictions(event_id, match_id):
         for pred, participant, score in preds:
             item = {'participant': participant, 'prediction': pred}
             score_type = score.score_type if score else 'none'
-            if score_type == 'exact_score':
+            if score_type and 'exact_score' in score_type:
                 exact_scores.append(item)
-            elif score_type == 'correct_winner':
+            elif score_type and 'correct_winner' in score_type:
                 correct_winners.append(item)
             else:
                 none_scores.append(item)

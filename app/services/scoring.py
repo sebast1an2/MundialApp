@@ -26,6 +26,24 @@ def calculate_match_scores(match_id):
         for c in ScoringConfig.query.filter_by(event_id=event.id, is_active=True).all()
     }
 
+    # Auto-seed correct_penalty_winner for events created before this feature.
+    # Only seeds if the row doesn't exist at all (respects admin disabling it).
+    if 'correct_penalty_winner' not in configs:
+        existing = ScoringConfig.query.filter_by(
+            event_id=event.id, score_type='correct_penalty_winner'
+        ).first()
+        if not existing:
+            new_cfg = ScoringConfig(
+                event_id=event.id,
+                score_type='correct_penalty_winner',
+                points_value=1,
+                is_active=True,
+                description='Bonus: adivinaste qué equipo clasifica en penales (solo empates de eliminatoria)',
+            )
+            db.session.add(new_cfg)
+            db.session.flush()
+            configs['correct_penalty_winner'] = new_cfg
+
     real_result = _get_result(match.home_score, match.away_score)
     predictions = Prediction.query.filter_by(match_id=match_id).all()
     updated = 0
@@ -50,6 +68,17 @@ def calculate_match_scores(match_id):
             if cfg:
                 points = cfg.points_value
                 score_type = 'correct_winner'
+
+        # Bonus: correct penalty winner.
+        # Conditions: base result correct + match had penalties + participant predicted one.
+        if (score_type != 'none'
+                and match.penalty_winner_id
+                and pred.predicted_penalty_winner_id
+                and pred.predicted_penalty_winner_id == match.penalty_winner_id):
+            pen_cfg = configs.get('correct_penalty_winner')
+            if pen_cfg:
+                points += pen_cfg.points_value
+                score_type = score_type + '+pen'
 
         # Upsert score record
         score = Score.query.filter_by(

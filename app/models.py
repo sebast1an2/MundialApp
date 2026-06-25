@@ -49,6 +49,7 @@ class Event(db.Model):
     prize_second = db.Column(db.Numeric(12, 2), nullable=True, default=0)   # Premio 2do lugar
     prize_third  = db.Column(db.Numeric(12, 2), nullable=True, default=0)   # Premio 3er lugar
     nequi_number = db.Column(db.String(20), nullable=True, default='')      # Número Nequi para pagos
+    template_id  = db.Column(db.Integer, db.ForeignKey('event_templates.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relations
@@ -139,8 +140,8 @@ class Match(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     phase_id = db.Column(db.Integer, db.ForeignKey('phases.id'), nullable=False)
     group_id = db.Column(db.Integer, db.ForeignKey('groups.id'), nullable=True)
-    home_team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)
-    away_team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=False)
+    home_team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True)
+    away_team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True)
     match_date = db.Column(db.DateTime, nullable=True)
     match_label = db.Column(db.String(100))   # "Grupo A - J1" / "Semifinal 1"
 
@@ -149,7 +150,19 @@ class Match(db.Model):
     away_score = db.Column(db.Integer, nullable=True)
     penalty_winner_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True)
     is_finished = db.Column(db.Boolean, default=False)
-    is_locked = db.Column(db.Boolean, default=False)
+    is_locked   = db.Column(db.Boolean, default=False)
+
+    # ── Bracket infrastructure ─────────────────────────────────────────────────
+    # Todos nullable: los partidos existentes no se ven afectados.
+    # home_source_match_id: partido cuyo resultado provee al equipo local
+    # away_source_match_id: partido cuyo resultado provee al equipo visitante
+    # *_source_outcome: 'winner' (default) o 'loser' (3er/4to puesto)
+    # bracket_position: posición ordinal dentro de la ronda para renderizado visual
+    home_source_match_id = db.Column(db.Integer, db.ForeignKey('matches.id'), nullable=True)
+    away_source_match_id = db.Column(db.Integer, db.ForeignKey('matches.id'), nullable=True)
+    home_source_outcome  = db.Column(db.String(10), nullable=True, default='winner')
+    away_source_outcome  = db.Column(db.String(10), nullable=True, default='winner')
+    bracket_position     = db.Column(db.Integer, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -177,7 +190,9 @@ class Match(db.Model):
         return 'draw'
 
     def __repr__(self):
-        return f'<Match {self.home_team_id} vs {self.away_team_id}>'
+        home = self.home_team_id or 'TBD'
+        away = self.away_team_id or 'TBD'
+        return f'<Match {home} vs {away}>'
 
 
 # ─────────────────────────────────────────────
@@ -224,6 +239,7 @@ class Prediction(db.Model):
     phase_id = db.Column(db.Integer, db.ForeignKey('phases.id'), nullable=False)
     home_pred = db.Column(db.Integer, nullable=False)
     away_pred = db.Column(db.Integer, nullable=False)
+    predicted_penalty_winner_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True)
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     __table_args__ = (db.UniqueConstraint('participant_id', 'match_id',
@@ -275,30 +291,105 @@ class ScoringConfig(db.Model):
     __table_args__ = (db.UniqueConstraint('event_id', 'score_type',
                                           name='uq_scoring_event_type'),)
 
+    _DEFAULTS = [
+        {
+            'score_type': 'exact_score',
+            'points_value': 3,
+            'is_active': True,
+            'description': 'Marcador exacto (ej: predijiste 2-1 y fue 2-1)',
+        },
+        {
+            'score_type': 'correct_winner',
+            'points_value': 1,
+            'is_active': True,
+            'description': 'Ganador/empate correcto pero marcador incorrecto',
+        },
+        {
+            'score_type': 'correct_penalty_winner',
+            'points_value': 1,
+            'is_active': True,
+            'description': 'Bonus: adivinaste qué equipo clasifica en penales (solo en empates de eliminatoria)',
+        },
+        {
+            'score_type': 'group_position',
+            'points_value': 2,
+            'is_active': False,
+            'description': 'Posición exacta del equipo en la tabla del grupo',
+        },
+    ]
+
     @staticmethod
     def create_defaults(event_id):
         """Create default scoring config for a new event."""
-        defaults = [
-            {
-                'score_type': 'exact_score',
-                'points_value': 3,
-                'is_active': True,
-                'description': 'Marcador exacto (ej: predijiste 2-1 y fue 2-1)',
-            },
-            {
-                'score_type': 'correct_winner',
-                'points_value': 1,
-                'is_active': True,
-                'description': 'Ganador/empate correcto pero marcador incorrecto',
-            },
-            {
-                'score_type': 'group_position',
-                'points_value': 2,
-                'is_active': False,
-                'description': 'Posición exacta del equipo en la tabla del grupo',
-            },
-        ]
-        for d in defaults:
+        for d in ScoringConfig._DEFAULTS:
             sc = ScoringConfig(event_id=event_id, **d)
             db.session.add(sc)
+        db.session.commit()
+
+
+# ─────────────────────────────────────────────
+# PLANTILLAS DE TORNEO
+# ─────────────────────────────────────────────
+
+class EventTemplate(db.Model):
+    __tablename__ = 'event_templates'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    logo_emoji = db.Column(db.String(10), default='📋')
+    is_active = db.Column(db.Boolean, default=True)
+    # Preparatorio: características estructurales de la plantilla
+    uses_bracket        = db.Column(db.Boolean, default=False)
+    allows_group_stage  = db.Column(db.Boolean, default=True)
+    allows_knockout     = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relations
+    phases = db.relationship('TemplatePhase', backref='template', lazy='dynamic',
+                             cascade='all, delete-orphan')
+    scoring_configs = db.relationship('TemplateScoringConfig', backref='template',
+                                      lazy='dynamic', cascade='all, delete-orphan')
+
+    def get_phases_ordered(self):
+        return self.phases.order_by(TemplatePhase.phase_order).all()
+
+    def __repr__(self):
+        return f'<EventTemplate {self.name}>'
+
+
+class TemplatePhase(db.Model):
+    __tablename__ = 'template_phases'
+
+    id = db.Column(db.Integer, primary_key=True)
+    template_id  = db.Column(db.Integer, db.ForeignKey('event_templates.id'), nullable=False)
+    name         = db.Column(db.String(100), nullable=False)
+    phase_order  = db.Column(db.Integer, nullable=False, default=1)
+    phase_type   = db.Column(db.String(20), default='group')   # 'group' | 'knockout'
+    # Preparatorio: cuántos equipos avanzan desde esta fase
+    teams_qualify    = db.Column(db.Integer, nullable=True)
+    is_bracket_round = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<TemplatePhase {self.name}>'
+
+
+class TemplateScoringConfig(db.Model):
+    __tablename__ = 'template_scoring_configs'
+
+    id            = db.Column(db.Integer, primary_key=True)
+    template_id   = db.Column(db.Integer, db.ForeignKey('event_templates.id'), nullable=False)
+    score_type    = db.Column(db.String(30), nullable=False)
+    points_value  = db.Column(db.Integer, default=0)
+    is_active     = db.Column(db.Boolean, default=True)
+    description   = db.Column(db.String(200))
+
+    __table_args__ = (db.UniqueConstraint('template_id', 'score_type',
+                                          name='uq_template_scoring_type'),)
+
+    @staticmethod
+    def create_defaults(template_id):
+        for d in ScoringConfig._DEFAULTS:
+            db.session.add(TemplateScoringConfig(template_id=template_id, **d))
         db.session.commit()

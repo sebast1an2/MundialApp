@@ -1,0 +1,640 @@
+{% extends 'base.html' %}
+{% block title %}Fixture Eliminatorio — {{ event.name }}{% endblock %}
+
+{% block content %}
+
+{# ── Determine match winner side ───────────────────────────────────────── #}
+{% macro winner_side(match) %}
+  {%- if match.is_finished -%}
+    {%- if match.home_score > match.away_score -%}home
+    {%- elif match.away_score > match.home_score -%}away
+    {%- elif match.penalty_winner_id == match.home_team_id -%}home
+    {%- elif match.penalty_winner_id == match.away_team_id -%}away
+    {%- else -%}draw
+    {%- endif -%}
+  {%- endif -%}
+{% endmacro %}
+
+{# ── Render a team row (or source origin if TBD) ─────────────────────── #}
+{# Used in desktop view #}
+{% macro pub_team_row(team, src_match_id, src_outcome, match_by_id, win_side, side, match) %}
+  {% set is_winner = (win_side == side) %}
+  {% set is_loser  = (match.is_finished and win_side and win_side != 'draw' and win_side != side) %}
+  <div class="bkpub-team-row {% if is_winner %}bkpub-winner{% elif is_loser %}bkpub-loser-row{% endif %}">
+    {% if team %}
+      <span class="bkpub-flag">{{ team.flag_emoji }}</span>
+      <span class="bkpub-tname">{{ team.short_name or team.name | truncate(10, True, '') }}</span>
+      {% if match.is_finished %}
+        {% set score = match.home_score if side == 'home' else match.away_score %}
+        <span class="bkpub-score {% if is_winner %}bkpub-score-win{% endif %}">
+          {{ score }}
+          {% if is_winner %}<i class="bi bi-trophy-fill ms-1" style="font-size:.6rem;color:var(--gold);"></i>{% endif %}
+        </span>
+      {% endif %}
+    {% elif src_match_id %}
+      {# Show origin instead of "Por definir" #}
+      {% set src = match_by_id.get(src_match_id) %}
+      {% if src %}
+        {% if src_outcome == 'loser' %}
+          <span class="bkpub-src-row bkpub-src-loser">
+            🥈 Perd. {{ src.match_label or ('Partido #' ~ src.id) }}
+          </span>
+        {% else %}
+          <span class="bkpub-src-row bkpub-src-winner">
+            🏆 Gan. {{ src.match_label or ('Partido #' ~ src.id) }}
+          </span>
+        {% endif %}
+      {% else %}
+        <span class="bkpub-tbd-row">
+          <span class="bkpub-tbd-dot">?</span>
+          <span class="bkpub-tbd-name">Por definir</span>
+        </span>
+      {% endif %}
+    {% else %}
+      <span class="bkpub-tbd-row">
+        <span class="bkpub-tbd-dot">?</span>
+        <span class="bkpub-tbd-name">Por definir</span>
+      </span>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{# ─── Page header ──────────────────────────────────────────────────────── #}
+<div style="background:linear-gradient(135deg,var(--primary) 0%,var(--primary-soft) 100%);color:#fff;padding:2.5rem 1rem 2rem;">
+  <div class="container">
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+      <a href="{{ url_for('public.event_detail', event_id=event.id) }}"
+         style="color:rgba(255,255,255,.6);text-decoration:none;font-size:.85rem;display:flex;align-items:center;gap:.3rem;">
+        <i class="bi bi-arrow-left"></i> {{ event.name }}
+      </a>
+    </div>
+    <div class="d-flex align-items-end justify-content-between mt-2 flex-wrap gap-3">
+      <div>
+        <h1 style="font-size:clamp(1.6rem,4vw,2.2rem);font-family:'Outfit',sans-serif;font-weight:800;margin:0;">
+          🏆 Fixture Eliminatorio
+        </h1>
+        <p style="opacity:.7;font-size:.88rem;margin:.4rem 0 0;">
+          Avance automático · Actualizado en tiempo real
+        </p>
+      </div>
+      {% if participant %}
+      <div style="background:rgba(255,255,255,.1);border-radius:var(--radius-sm);padding:.5rem .9rem;font-size:.85rem;">
+        <i class="bi bi-person-fill me-1"></i>{{ participant.name }}
+      </div>
+      {% endif %}
+    </div>
+
+    {# Phase breadcrumb #}
+    <div class="d-flex align-items-center gap-2 mt-3 flex-wrap">
+      {% for pd in phase_data %}
+        <span style="background:rgba(255,255,255,.15);color:#fff;font-size:.72rem;font-weight:700;
+                     padding:.2rem .65rem;border-radius:20px;letter-spacing:.3px;
+                     font-family:'Outfit',sans-serif;">
+          {{ pd.phase.name }}
+        </span>
+        {% if not loop.last %}
+          <i class="bi bi-arrow-right" style="opacity:.4;font-size:.75rem;"></i>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{# ─── Main content ─────────────────────────────────────────────────────── #}
+<div class="container py-4">
+
+  {# ── Desktop: horizontal scrollable fixture ────────────────────────── #}
+  <div class="d-none d-md-block">
+    <div class="bkpub-scroll-wrapper">
+      <div class="bkpub-bracket-row">
+
+        {% for pd in phase_data %}
+        <div class="bkpub-phase-col">
+
+          {# Column header #}
+          <div class="bkpub-phase-hdr">
+            <span class="bkpub-phase-name">{{ pd.phase.name }}</span>
+            <span class="bkpub-match-count">
+              {{ pd.matches|length }} partido{{ 's' if pd.matches|length != 1 else '' }}
+            </span>
+          </div>
+
+          {% if pd.matches %}
+            <div class="bkpub-matches-col">
+              {% for match in pd.matches %}
+                {% set home_team = teams_by_id.get(match.home_team_id) %}
+                {% set away_team = teams_by_id.get(match.away_team_id) %}
+                {% set win = winner_side(match) | trim %}
+
+                <div class="bkpub-match
+                  {% if match.is_finished %}bkpub-done
+                  {% elif match.home_team_id and match.away_team_id %}bkpub-ready
+                  {% else %}bkpub-tbd{% endif %}">
+
+                  {% if match.match_label %}
+                  <div class="bkpub-match-lbl">{{ match.match_label }}</div>
+                  {% endif %}
+
+                  {# Home row #}
+                  {{ pub_team_row(home_team, match.home_source_match_id, match.home_source_outcome, match_by_id, win, 'home', match) }}
+
+                  {# Divider / score / date #}
+                  <div class="bkpub-divider">
+                    {% if not match.is_finished and match.match_date %}
+                      <span class="bkpub-date">{{ match.match_date.strftime('%d/%m %H:%M') }}</span>
+                    {% elif not match.is_finished %}
+                      <span class="bkpub-vs">vs</span>
+                    {% else %}
+                      <span class="bkpub-final-badge">Final</span>
+                    {% endif %}
+                  </div>
+
+                  {# Away row #}
+                  {{ pub_team_row(away_team, match.away_source_match_id, match.away_source_outcome, match_by_id, win, 'away', match) }}
+
+                  {# Penalty note #}
+                  {% if match.is_finished and match.penalty_winner_id and match.home_score == match.away_score %}
+                    {% set pen_winner = teams_by_id.get(match.penalty_winner_id) %}
+                    {% if pen_winner %}
+                    <div class="bkpub-penalty-note">
+                      <i class="bi bi-dot"></i>{{ pen_winner.short_name or pen_winner.name }} gana penales
+                    </div>
+                    {% endif %}
+                  {% endif %}
+
+                </div>{# end .bkpub-match #}
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="bkpub-empty-phase">
+              <i class="bi bi-hourglass" style="font-size:1.5rem;opacity:.3;"></i>
+              <span>Partidos por<br>configurar</span>
+            </div>
+          {% endif %}
+
+        </div>{# end .bkpub-phase-col #}
+
+        {% if not loop.last %}
+        <div class="bkpub-connector" aria-hidden="true">
+          <div class="bkpub-conn-line"></div>
+          <i class="bi bi-arrow-right-short bkpub-conn-arrow"></i>
+          <div class="bkpub-conn-line"></div>
+        </div>
+        {% endif %}
+
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="text-center mt-2" style="font-size:.72rem;color:var(--text-muted);">
+      <i class="bi bi-arrows-expand-horizontal me-1"></i>Desliza para ver todas las rondas
+    </div>
+  </div>
+
+  {# ── Mobile: stacked cards ─────────────────────────────────────────── #}
+  <div class="d-md-none">
+    {% for pd in phase_data %}
+    <div class="card-custom mb-3">
+      <div class="card-header-custom d-flex align-items-center justify-content-between">
+        <span><i class="bi bi-lightning-fill me-2"></i>{{ pd.phase.name }}</span>
+        <span style="background:rgba(255,255,255,.2);font-size:.7rem;font-weight:700;
+                     padding:.15rem .5rem;border-radius:20px;">
+          {{ pd.matches|length }}
+        </span>
+      </div>
+      <div class="card-body-custom p-0">
+        {% if pd.matches %}
+          {% for match in pd.matches %}
+            {% set home_team = teams_by_id.get(match.home_team_id) %}
+            {% set away_team = teams_by_id.get(match.away_team_id) %}
+            {% set win = winner_side(match) | trim %}
+
+            <div class="mob-match-row {% if not loop.last %}mob-match-border{% endif %}">
+
+              {% if match.match_label %}
+              <div class="mob-match-lbl">{{ match.match_label }}</div>
+              {% endif %}
+
+              <div class="mob-teams">
+
+                {# Home #}
+                <div class="mob-team {% if win == 'home' %}mob-winner{% elif win and win != 'draw' and win == 'away' %}mob-loser{% endif %}">
+                  {% if home_team %}
+                    <span style="font-size:1.3rem;">{{ home_team.flag_emoji }}</span>
+                    <span class="mob-tname">{{ home_team.short_name or home_team.name }}</span>
+                    {% if match.is_finished %}
+                      <span class="mob-score {% if win == 'home' %}mob-score-win{% endif %}">{{ match.home_score }}</span>
+                    {% endif %}
+                  {% elif match.home_source_match_id %}
+                    {% set src = match_by_id.get(match.home_source_match_id) %}
+                    {% if src %}
+                      {% if match.home_source_outcome == 'loser' %}
+                        <span class="mob-src-text mob-src-loser">🥈 Perd. {{ src.match_label or ('Partido #' ~ src.id) }}</span>
+                      {% else %}
+                        <span class="mob-src-text mob-src-winner">🏆 Gan. {{ src.match_label or ('Partido #' ~ src.id) }}</span>
+                      {% endif %}
+                    {% else %}
+                      <span style="font-size:.9rem;color:var(--text-muted);font-style:italic;flex:1;">❔ Por definir</span>
+                    {% endif %}
+                  {% else %}
+                    <span style="font-size:.9rem;color:var(--text-muted);font-style:italic;flex:1;">❔ Por definir</span>
+                  {% endif %}
+                </div>
+
+                {# Center #}
+                <div class="mob-center">
+                  {% if match.is_finished %}
+                    <div class="mob-scoreboard">
+                      <span class="mob-sb-score">{{ match.home_score }}</span>
+                      <span class="mob-sb-dash">–</span>
+                      <span class="mob-sb-score">{{ match.away_score }}</span>
+                    </div>
+                    {% if match.penalty_winner_id and match.home_score == match.away_score %}
+                      {% set pen_w = teams_by_id.get(match.penalty_winner_id) %}
+                      {% if pen_w %}
+                        <div style="font-size:.58rem;color:var(--text-muted);text-align:center;margin-top:.1rem;">
+                          Pen: {{ pen_w.short_name or pen_w.name }}
+                        </div>
+                      {% endif %}
+                    {% endif %}
+                  {% elif match.match_date %}
+                    <div class="mob-date">{{ match.match_date.strftime('%d/%m') }}<br>{{ match.match_date.strftime('%H:%M') }}</div>
+                  {% else %}
+                    <div class="mob-vs-text">vs</div>
+                  {% endif %}
+                </div>
+
+                {# Away #}
+                <div class="mob-team mob-team-right {% if win == 'away' %}mob-winner{% elif win and win != 'draw' and win == 'home' %}mob-loser{% endif %}">
+                  {% if away_team %}
+                    {% if match.is_finished %}
+                      <span class="mob-score {% if win == 'away' %}mob-score-win{% endif %}">{{ match.away_score }}</span>
+                    {% endif %}
+                    <span class="mob-tname mob-tname-right">{{ away_team.short_name or away_team.name }}</span>
+                    <span style="font-size:1.3rem;">{{ away_team.flag_emoji }}</span>
+                  {% elif match.away_source_match_id %}
+                    {% set src = match_by_id.get(match.away_source_match_id) %}
+                    {% if src %}
+                      {% if match.away_source_outcome == 'loser' %}
+                        <span class="mob-src-text mob-src-loser" style="text-align:right;">🥈 Perd. {{ src.match_label or ('Partido #' ~ src.id) }}</span>
+                      {% else %}
+                        <span class="mob-src-text mob-src-winner" style="text-align:right;">🏆 Gan. {{ src.match_label or ('Partido #' ~ src.id) }}</span>
+                      {% endif %}
+                    {% else %}
+                      <span style="font-size:.9rem;color:var(--text-muted);font-style:italic;flex:1;text-align:right;">Por definir ❔</span>
+                    {% endif %}
+                  {% else %}
+                    <span style="font-size:.9rem;color:var(--text-muted);font-style:italic;flex:1;text-align:right;">Por definir ❔</span>
+                  {% endif %}
+                </div>
+
+              </div>
+
+              {# Winner badge #}
+              {% if match.is_finished %}
+                {% set winning_team = teams_by_id.get(match.home_team_id if win == 'home' else match.away_team_id) %}
+                {% if winning_team %}
+                <div class="mob-winner-badge">
+                  <i class="bi bi-trophy-fill me-1" style="color:var(--gold);"></i>
+                  {{ winning_team.name }} avanza
+                </div>
+                {% endif %}
+              {% endif %}
+
+            </div>
+          {% endfor %}
+        {% else %}
+          <div class="text-center py-4 text-muted small">
+            <i class="bi bi-hourglass me-1"></i>Partidos por configurar
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if not loop.last %}
+    <div class="text-center mb-3" style="color:var(--text-muted);">
+      <i class="bi bi-arrow-down-circle" style="font-size:1.3rem;opacity:.4;"></i>
+      <div style="font-size:.68rem;margin-top:.15rem;">clasificados avanzan</div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+
+  {# ─── Legend ──────────────────────────────────────────────────────── #}
+  <div class="card-custom mt-4" style="border-left:4px solid var(--border);">
+    <div class="card-body-custom py-3">
+      <div class="d-flex flex-wrap gap-3 align-items-center" style="font-size:.78rem;color:var(--text-muted);">
+        <strong style="color:var(--text);font-size:.82rem;">Leyenda</strong>
+        <span class="d-flex align-items-center gap-1">
+          <span style="width:10px;height:10px;border-radius:2px;background:rgba(64,145,108,.25);display:inline-block;border-left:3px solid var(--green-field);"></span>
+          Ganador del partido
+        </span>
+        <span class="d-flex align-items-center gap-1">
+          <span style="font-size:.9rem;">🏆</span> Gan. [partido] — avanza el ganador
+        </span>
+        <span class="d-flex align-items-center gap-1">
+          <span style="font-size:.9rem;">🥈</span> Perd. [partido] — tercer puesto
+        </span>
+        <span class="d-flex align-items-center gap-1">
+          <span style="font-size:.9rem;">❔</span> Equipo aún por clasificar
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="text-center mt-4 mb-2">
+    <a href="{{ url_for('public.event_detail', event_id=event.id) }}" class="btn-outline-custom">
+      <i class="bi bi-arrow-left me-1"></i>Volver al evento
+    </a>
+  </div>
+
+</div>
+
+{# ─── Styles ───────────────────────────────────────────────────────────── #}
+<style>
+/* ═══════════════════════════════════════════════════════
+   DESKTOP FIXTURE
+═══════════════════════════════════════════════════════ */
+.bkpub-scroll-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: .75rem .25rem 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--silver) transparent;
+}
+.bkpub-scroll-wrapper::-webkit-scrollbar { height: 5px; }
+.bkpub-scroll-wrapper::-webkit-scrollbar-thumb { background: var(--silver); border-radius: 3px; }
+
+.bkpub-bracket-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  min-width: max-content;
+}
+
+/* ── Phase column ─────────────────── */
+.bkpub-phase-col {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 185px;
+  max-width: 210px;
+}
+.bkpub-phase-hdr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .2rem;
+  padding: .6rem .5rem;
+  margin-bottom: .75rem;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+.bkpub-phase-name {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 800;
+  font-size: .82rem;
+  color: #fff;
+  letter-spacing: .2px;
+}
+.bkpub-match-count {
+  font-size: .65rem;
+  color: rgba(255,255,255,.55);
+  font-weight: 600;
+}
+
+/* ── Matches column ───────────────── */
+.bkpub-matches-col {
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+
+/* ── Individual match card ────────── */
+.bkpub-match {
+  background: var(--card-bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  transition: var(--transition);
+}
+.bkpub-match:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.bkpub-match.bkpub-done  { border-color: rgba(64,145,108,.4); }
+.bkpub-match.bkpub-ready { border-color: rgba(13,27,42,.25);  }
+.bkpub-match.bkpub-tbd   { border-color: var(--border); background: #fafafa; }
+
+.bkpub-match-lbl {
+  font-size: .62rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  padding: .3rem .6rem .1rem;
+  text-align: center;
+}
+
+/* ── Team row ─────────────────────── */
+.bkpub-team-row {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .45rem .6rem;
+  min-height: 36px;
+  transition: background .15s;
+}
+.bkpub-team-row.bkpub-winner {
+  background: rgba(64,145,108,.1);
+  border-left: 3px solid var(--green-field);
+}
+.bkpub-team-row.bkpub-loser-row { opacity: .6; }
+
+.bkpub-flag { font-size: 1.05rem; line-height: 1; flex-shrink: 0; }
+.bkpub-tname {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bkpub-score {
+  font-family: 'Outfit', sans-serif;
+  font-size: .95rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  min-width: 20px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.bkpub-score.bkpub-score-win { color: var(--green-field); }
+
+/* ── Source origin in desktop rows ── */
+.bkpub-src-row {
+  font-size: .72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.bkpub-src-winner { color: #065f46; }
+.bkpub-src-loser  { color: #7a4d1d; }
+
+/* ── TBD rows ─────────────────────── */
+.bkpub-tbd-row {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  flex: 1;
+}
+.bkpub-tbd-dot {
+  width: 1.15rem;
+  height: 1.15rem;
+  background: var(--border);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .65rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.bkpub-tbd-name {
+  font-size: .72rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Divider ──────────────────────── */
+.bkpub-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: .15rem .6rem;
+  border-top: 1px dashed var(--border);
+  border-bottom: 1px dashed var(--border);
+  background: rgba(0,0,0,.02);
+  min-height: 22px;
+}
+.bkpub-vs    { font-size: .62rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+.bkpub-date  { font-size: .6rem; color: var(--text-muted); font-weight: 600; }
+.bkpub-final-badge { font-size: .6rem; font-weight: 700; color: var(--green-field); text-transform: uppercase; letter-spacing: .5px; }
+
+/* ── Penalty note ─────────────────── */
+.bkpub-penalty-note {
+  font-size: .6rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: .15rem .5rem .3rem;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Empty phase ──────────────────── */
+.bkpub-empty-phase {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  padding: 2rem 1rem;
+  color: var(--text-muted);
+  font-size: .78rem;
+  text-align: center;
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Phase connector ──────────────── */
+.bkpub-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  padding-top: 56px;
+  flex-shrink: 0;
+}
+.bkpub-conn-line  { flex: 1; width: 1px; border-left: 2px dashed rgba(13,27,42,.15); min-height: 20px; }
+.bkpub-conn-arrow { font-size: 1.5rem; color: rgba(13,27,42,.25); line-height: 1; flex-shrink: 0; }
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE FIXTURE
+═══════════════════════════════════════════════════════ */
+.mob-match-row   { padding: .85rem 1rem; }
+.mob-match-border { border-bottom: 1px solid var(--border); }
+.mob-match-lbl {
+  font-size: .68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-bottom: .4rem;
+  text-align: center;
+}
+.mob-teams { display: flex; align-items: center; gap: .5rem; }
+.mob-team {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex: 1;
+  padding: .4rem .5rem;
+  border-radius: 6px;
+  transition: background .15s;
+}
+.mob-team-right { justify-content: flex-end; flex-direction: row-reverse; }
+.mob-team.mob-winner { background: rgba(64,145,108,.1); border-left: 3px solid var(--green-field); }
+.mob-team-right.mob-winner { border-left: none; border-right: 3px solid var(--green-field); }
+.mob-team.mob-loser { opacity: .55; }
+.mob-tname {
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 90px;
+}
+.mob-tname-right { text-align: right; }
+.mob-score { font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 800; color: var(--text-muted); flex-shrink: 0; }
+.mob-score.mob-score-win { color: var(--green-field); }
+
+/* Source origin (mobile) */
+.mob-src-text {
+  font-size: .72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.mob-src-winner { color: #065f46; }
+.mob-src-loser  { color: #7a4d1d; }
+
+/* Center section */
+.mob-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 56px; flex-shrink: 0; }
+.mob-scoreboard { display: flex; align-items: center; gap: .2rem; background: var(--primary); color: #fff; border-radius: 6px; padding: .25rem .5rem; }
+.mob-sb-score  { font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 800; }
+.mob-sb-dash   { font-size: .8rem; opacity: .6; margin: 0 .1rem; }
+.mob-date      { font-size: .65rem; color: var(--text-muted); font-weight: 700; text-align: center; line-height: 1.3; }
+.mob-vs-text   { font-size: .7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+
+/* Winner badge */
+.mob-winner-badge {
+  margin-top: .5rem;
+  text-align: center;
+  font-size: .7rem;
+  font-weight: 700;
+  color: var(--green-field);
+  padding: .2rem .5rem;
+  background: rgba(64,145,108,.1);
+  border-radius: 20px;
+  display: block;
+  width: fit-content;
+  margin: .5rem auto 0;
+}
+</style>
+
+{% endblock %}
