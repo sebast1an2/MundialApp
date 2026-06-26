@@ -115,13 +115,7 @@ def validate_participant(event_id):
             flash(f'¡Bienvenido de nuevo, {participant.name}!', 'success')
             return redirect(url_for('public.event_detail', event_id=event_id))
         else:
-            # Caso 2 y 3: No tiene participación
-            if not open_phase:
-                # Caso 3: Fase cerrada
-                flash('Las predicciones para esta fase ya están cerradas y no estás registrado.', 'warning')
-                return render_template('public/validate.html', event=event, step='closed')
-            
-            # Caso 2: Permitir registro si hay fase abierta
+            # Permitir registro siempre, incluso si no hay fase abierta
             if not name:
                 # Falta el nombre para el nuevo registro
                 return render_template('public/validate.html', event=event, step='name', cedula=cedula)
