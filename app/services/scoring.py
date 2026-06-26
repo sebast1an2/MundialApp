@@ -44,6 +44,22 @@ def calculate_match_scores(match_id):
             db.session.flush()
             configs['correct_penalty_winner'] = new_cfg
 
+    # Auto-seed final_winner_bonus for events created before this feature.
+    if 'final_winner_bonus' not in configs:
+        existing_final = ScoringConfig.query.filter_by(
+            event_id=event.id, score_type='final_winner_bonus'
+        ).first()
+        if not existing_final:
+            new_final_cfg = ScoringConfig(
+                event_id=event.id,
+                score_type='final_winner_bonus',
+                points_value=3,
+                is_active=False,
+                description='Bonus: Acertar el ganador del partido de la Final',
+            )
+            db.session.add(new_final_cfg)
+            db.session.flush()
+
     real_result = _get_result(match.home_score, match.away_score)
     predictions = Prediction.query.filter_by(match_id=match_id).all()
     updated = 0
@@ -79,6 +95,22 @@ def calculate_match_scores(match_id):
             if pen_cfg:
                 points += pen_cfg.points_value
                 score_type = score_type + '+pen'
+
+        # Bonus: Final winner
+        if 'final' in match.phase.name.lower():
+            final_cfg = configs.get('final_winner_bonus')
+            if final_cfg:
+                got_winner = False
+                if score_type != 'none':
+                    if real_result in ('home', 'away'):
+                        got_winner = True
+                    elif real_result == 'draw' and match.penalty_winner_id:
+                        if pred.predicted_penalty_winner_id == match.penalty_winner_id:
+                            got_winner = True
+                
+                if got_winner:
+                    points += final_cfg.points_value
+                    score_type = score_type + '+final'
 
         # Upsert score record
         score = Score.query.filter_by(

@@ -227,6 +227,8 @@
                     <h6 style="font-weight:700;font-size:.95rem;margin-bottom:.2rem;">
                       {% if cfg.score_type == 'exact_score' %}🎯 Marcador Exacto
                       {% elif cfg.score_type == 'correct_winner' %}✅ Ganador/Empate Correcto
+                      {% elif cfg.score_type == 'correct_penalty_winner' %}⚽ Bonus — Ganador en Penales
+                      {% elif cfg.score_type == 'final_winner_bonus' %}🏆 Bonus ganador de la Final
                       {% elif cfg.score_type == 'group_position' %}📊 Posición en Grupo
                       {% else %}{{ cfg.score_type }}
                       {% endif %}

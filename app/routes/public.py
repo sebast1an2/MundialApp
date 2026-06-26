@@ -191,9 +191,12 @@ def predictions_form(event_id, cedula):
         flash('Esta fase no tiene partidos cargados aún.', 'warning')
         return redirect(url_for('public.event_detail', event_id=event_id))
 
+    active_scoring_configs = event.scoring_configs.filter_by(is_active=True).all()
+
     return render_template('public/predictions_form.html',
                            event=event, participant=participant,
-                           phase=open_phase, matches=matches)
+                           phase=open_phase, matches=matches,
+                           scoring_configs=active_scoring_configs)
 
 
 @public_bp.route('/evento/<int:event_id>/guardar-predicciones', methods=['POST'])

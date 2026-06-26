@@ -316,6 +316,12 @@ class ScoringConfig(db.Model):
             'is_active': False,
             'description': 'Posición exacta del equipo en la tabla del grupo',
         },
+        {
+            'score_type': 'final_winner_bonus',
+            'points_value': 3,
+            'is_active': True,
+            'description': 'Bonus: Acertar el ganador del partido de la Final',
+        },
     ]
 
     @staticmethod

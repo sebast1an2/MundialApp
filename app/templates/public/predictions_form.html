@@ -7,13 +7,47 @@
   <div class="text-center mb-4 fade-in-up">
     <span style="font-size: 2.5rem;">{{ event.logo_emoji }}</span>
     <h1 style="font-size: 1.6rem; margin: .5rem 0 .1rem;">{{ event.name }}</h1>
-    <p class="text-muted">{{ phase.name }} &mdash; Predicciones de <strong>{{ participant.name }}</strong></p>
+    <p class="text-muted mb-1">{{ phase.name }} &mdash; Predicciones de <strong>{{ participant.name }}</strong></p>
+    <div>
+      {% if participant.payment_confirmed %}
+        <span class="badge bg-success-subtle text-success border-0" style="font-size: .65rem; padding: .25rem .5rem;"><i class="bi bi-check-circle-fill me-1"></i>Inscripción confirmada</span>
+      {% else %}
+        <span class="badge bg-warning-subtle text-warning border-0" style="font-size: .65rem; padding: .25rem .5rem;"><i class="bi bi-exclamation-circle-fill me-1"></i>Pago pendiente</span>
+      {% endif %}
+    </div>
     <div class="alert alert-warning d-inline-flex align-items-center gap-2"
          style="border-radius: 50px; font-size: .85rem; padding: .4rem 1.25rem;">
       <i class="bi bi-exclamation-triangle-fill"></i>
       Una vez guardadas, <strong>no podrás modificar</strong> tus predicciones.
     </div>
   </div>
+
+  <!-- Info Puntuación -->
+  {% if scoring_configs %}
+  <div class="card-custom mb-4 mx-auto fade-in-up" style="max-width: 600px; border-left: 4px solid var(--primary);">
+    <div class="card-body-custom py-3 px-4">
+      <h6 style="font-family: 'Outfit', sans-serif; font-weight: 700; margin-bottom: .8rem; font-size: .95rem; color: var(--primary);">
+        <i class="bi bi-info-circle-fill me-1"></i> Sistema de puntuación
+      </h6>
+      <ul style="list-style: none; padding: 0; margin: 0; font-size: .85rem; color: var(--text-muted);">
+        {% for cfg in scoring_configs %}
+          <li class="mb-2 d-flex align-items-center justify-content-between border-bottom pb-1" {% if loop.last %}style="border-bottom:none!important;"{% endif %}>
+            <span>
+              {% if cfg.score_type == 'exact_score' %}🎯 Resultado exacto
+              {% elif cfg.score_type == 'correct_winner' %}✅ Ganador/Empate correcto
+              {% elif cfg.score_type == 'correct_penalty_winner' %}⚽ Empate correctamente clasificado (penales)
+              {% elif cfg.score_type == 'final_winner_bonus' %}🏆 Bonus por acertar el ganador de la Final
+              {% elif cfg.score_type == 'group_position' %}📊 Posición exacta en grupo
+              {% else %}{{ cfg.score_type }}
+              {% endif %}
+            </span>
+            <strong style="color: var(--text);">{{ cfg.points_value }} pt{{ 's' if cfg.points_value != 1 else '' }}</strong>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+  {% endif %}
 
   <form method="POST" action="{{ url_for('public.save_predictions', event_id=event.id) }}"
         id="predictions-form">

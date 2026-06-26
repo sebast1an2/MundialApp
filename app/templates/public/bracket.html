@@ -16,14 +16,13 @@
 {% endmacro %}
 
 {# ── Render a team row (or source origin if TBD) ─────────────────────── #}
-{# Used in desktop view #}
 {% macro pub_team_row(team, src_match_id, src_outcome, match_by_id, win_side, side, match) %}
   {% set is_winner = (win_side == side) %}
   {% set is_loser  = (match.is_finished and win_side and win_side != 'draw' and win_side != side) %}
-  <div class="bkpub-team-row {% if is_winner %}bkpub-winner{% elif is_loser %}bkpub-loser-row{% endif %}">
+  <div class="bkpub-team-row {% if is_winner %}bkpub-winner{% elif is_loser %}bkpub-loser-row{% endif %}" id="team-{{ side }}-{{ match.id }}">
     {% if team %}
       <span class="bkpub-flag">{{ team.flag_emoji }}</span>
-      <span class="bkpub-tname">{{ team.short_name or team.name | truncate(10, True, '') }}</span>
+      <span class="bkpub-tname">{{ team.name }}</span>
       {% if match.is_finished %}
         {% set score = match.home_score if side == 'home' else match.away_score %}
         <span class="bkpub-score {% if is_winner %}bkpub-score-win{% endif %}">
@@ -32,34 +31,31 @@
         </span>
       {% endif %}
     {% elif src_match_id %}
-      {# Show origin instead of "Por definir" #}
       {% set src = match_by_id.get(src_match_id) %}
       {% if src %}
-        {% if src_outcome == 'loser' %}
-          <span class="bkpub-src-row bkpub-src-loser">
-            🥈 Perd. {{ src.match_label or ('Partido #' ~ src.id) }}
-          </span>
-        {% else %}
-          <span class="bkpub-src-row bkpub-src-winner">
-            🏆 Gan. {{ src.match_label or ('Partido #' ~ src.id) }}
-          </span>
-        {% endif %}
+        <span class="bkpub-tbd-row">
+          <span class="bkpub-tbd-dot">❔</span>
+          {% if src_outcome == 'loser' %}
+            <span class="bkpub-src-row bkpub-src-loser">Pendiente (Perd. {{ src.match_label or ('Partido #' ~ src.id) }})</span>
+          {% else %}
+            <span class="bkpub-src-row bkpub-src-winner">Pendiente (Gan. {{ src.match_label or ('Partido #' ~ src.id) }})</span>
+          {% endif %}
+        </span>
       {% else %}
         <span class="bkpub-tbd-row">
-          <span class="bkpub-tbd-dot">?</span>
+          <span class="bkpub-tbd-dot">❔</span>
           <span class="bkpub-tbd-name">Por definir</span>
         </span>
       {% endif %}
     {% else %}
       <span class="bkpub-tbd-row">
-        <span class="bkpub-tbd-dot">?</span>
+        <span class="bkpub-tbd-dot">❔</span>
         <span class="bkpub-tbd-name">Por definir</span>
       </span>
     {% endif %}
   </div>
 {% endmacro %}
 
-{# ─── Page header ──────────────────────────────────────────────────────── #}
 <div style="background:linear-gradient(135deg,var(--primary) 0%,var(--primary-soft) 100%);color:#fff;padding:2.5rem 1rem 2rem;">
   <div class="container">
     <div class="d-flex align-items-center gap-3 flex-wrap">
@@ -84,7 +80,6 @@
       {% endif %}
     </div>
 
-    {# Phase breadcrumb #}
     <div class="d-flex align-items-center gap-2 mt-3 flex-wrap">
       {% for pd in phase_data %}
         <span style="background:rgba(255,255,255,.15);color:#fff;font-size:.72rem;font-weight:700;
@@ -100,276 +95,155 @@
   </div>
 </div>
 
-{# ─── Main content ─────────────────────────────────────────────────────── #}
-<div class="container py-4">
+<div class="container-fluid py-4 px-0 px-md-3">
 
-  {# ── Desktop: horizontal scrollable fixture ────────────────────────── #}
-  <div class="d-none d-md-block">
-    <div class="bkpub-scroll-wrapper">
-      <div class="bkpub-bracket-row">
+  <div class="bkpub-scroll-wrapper" id="bracket-container">
+    <!-- Contenedor SVG para las líneas de conexión -->
+    <svg id="bracket-lines"></svg>
 
-        {% for pd in phase_data %}
-        <div class="bkpub-phase-col">
-
-          {# Column header #}
-          <div class="bkpub-phase-hdr">
-            <span class="bkpub-phase-name">{{ pd.phase.name }}</span>
-            <span class="bkpub-match-count">
-              {{ pd.matches|length }} partido{{ 's' if pd.matches|length != 1 else '' }}
-            </span>
-          </div>
-
-          {% if pd.matches %}
-            <div class="bkpub-matches-col">
-              {% for match in pd.matches %}
-                {% set home_team = teams_by_id.get(match.home_team_id) %}
-                {% set away_team = teams_by_id.get(match.away_team_id) %}
-                {% set win = winner_side(match) | trim %}
-
-                <div class="bkpub-match
-                  {% if match.is_finished %}bkpub-done
-                  {% elif match.home_team_id and match.away_team_id %}bkpub-ready
-                  {% else %}bkpub-tbd{% endif %}">
-
-                  {% if match.match_label %}
-                  <div class="bkpub-match-lbl">{{ match.match_label }}</div>
-                  {% endif %}
-
-                  {# Home row #}
-                  {{ pub_team_row(home_team, match.home_source_match_id, match.home_source_outcome, match_by_id, win, 'home', match) }}
-
-                  {# Divider / score / date #}
-                  <div class="bkpub-divider">
-                    {% if not match.is_finished and match.match_date %}
-                      <span class="bkpub-date">{{ match.match_date.strftime('%d/%m %H:%M') }}</span>
-                    {% elif not match.is_finished %}
-                      <span class="bkpub-vs">vs</span>
-                    {% else %}
-                      <span class="bkpub-final-badge">Final</span>
-                    {% endif %}
-                  </div>
-
-                  {# Away row #}
-                  {{ pub_team_row(away_team, match.away_source_match_id, match.away_source_outcome, match_by_id, win, 'away', match) }}
-
-                  {# Penalty note #}
-                  {% if match.is_finished and match.penalty_winner_id and match.home_score == match.away_score %}
-                    {% set pen_winner = teams_by_id.get(match.penalty_winner_id) %}
-                    {% if pen_winner %}
-                    <div class="bkpub-penalty-note">
-                      <i class="bi bi-dot"></i>{{ pen_winner.short_name or pen_winner.name }} gana penales
-                    </div>
-                    {% endif %}
-                  {% endif %}
-
-                </div>{# end .bkpub-match #}
-              {% endfor %}
-            </div>
-          {% else %}
-            <div class="bkpub-empty-phase">
-              <i class="bi bi-hourglass" style="font-size:1.5rem;opacity:.3;"></i>
-              <span>Partidos por<br>configurar</span>
-            </div>
-          {% endif %}
-
-        </div>{# end .bkpub-phase-col #}
-
-        {% if not loop.last %}
-        <div class="bkpub-connector" aria-hidden="true">
-          <div class="bkpub-conn-line"></div>
-          <i class="bi bi-arrow-right-short bkpub-conn-arrow"></i>
-          <div class="bkpub-conn-line"></div>
+    <div class="bkpub-bracket-row">
+      {% for pd in phase_data %}
+      <div class="bkpub-phase-col">
+        <div class="bkpub-phase-hdr">
+          <span class="bkpub-phase-name">{{ pd.phase.name }}</span>
+          <span class="bkpub-match-count">{{ pd.matches|length }} partido{{ 's' if pd.matches|length != 1 else '' }}</span>
         </div>
-        {% endif %}
 
-        {% endfor %}
-      </div>
-    </div>
-
-    <div class="text-center mt-2" style="font-size:.72rem;color:var(--text-muted);">
-      <i class="bi bi-arrows-expand-horizontal me-1"></i>Desliza para ver todas las rondas
-    </div>
-  </div>
-
-  {# ── Mobile: stacked cards ─────────────────────────────────────────── #}
-  <div class="d-md-none">
-    {% for pd in phase_data %}
-    <div class="card-custom mb-3">
-      <div class="card-header-custom d-flex align-items-center justify-content-between">
-        <span><i class="bi bi-lightning-fill me-2"></i>{{ pd.phase.name }}</span>
-        <span style="background:rgba(255,255,255,.2);font-size:.7rem;font-weight:700;
-                     padding:.15rem .5rem;border-radius:20px;">
-          {{ pd.matches|length }}
-        </span>
-      </div>
-      <div class="card-body-custom p-0">
         {% if pd.matches %}
-          {% for match in pd.matches %}
-            {% set home_team = teams_by_id.get(match.home_team_id) %}
-            {% set away_team = teams_by_id.get(match.away_team_id) %}
-            {% set win = winner_side(match) | trim %}
+          <div class="bkpub-matches-col">
+            {% for match in pd.matches %}
+              {% set home_team = teams_by_id.get(match.home_team_id) %}
+              {% set away_team = teams_by_id.get(match.away_team_id) %}
+              {% set win = winner_side(match) | trim %}
+              
+              {# Si es el 3er y 4to puesto y está en la misma fase que la final, darle más espacio o separarlo #}
+              {% set is_third_place = 'tercer' in match.match_label|lower or '3er' in match.match_label|lower %}
 
-            <div class="mob-match-row {% if not loop.last %}mob-match-border{% endif %}">
+              <div class="bkpub-match
+                {% if match.is_finished %}bkpub-done
+                {% elif match.home_team_id and match.away_team_id %}bkpub-ready
+                {% else %}bkpub-tbd{% endif %}
+                {% if is_third_place %}bkpub-third-place{% endif %}"
+                id="match-{{ match.id }}"
+                data-match-id="{{ match.id }}"
+                data-home-src="{{ match.home_source_match_id or '' }}"
+                data-away-src="{{ match.away_source_match_id or '' }}"
+                data-home-src-outcome="{{ match.home_source_outcome or 'winner' }}"
+                data-away-src-outcome="{{ match.away_source_outcome or 'winner' }}">
 
-              {% if match.match_label %}
-              <div class="mob-match-lbl">{{ match.match_label }}</div>
-              {% endif %}
+                {% if match.match_label %}
+                <div class="bkpub-match-lbl">{{ match.match_label }}</div>
+                {% endif %}
 
-              <div class="mob-teams">
+                {{ pub_team_row(home_team, match.home_source_match_id, match.home_source_outcome, match_by_id, win, 'home', match) }}
 
-                {# Home #}
-                <div class="mob-team {% if win == 'home' %}mob-winner{% elif win and win != 'draw' and win == 'away' %}mob-loser{% endif %}">
-                  {% if home_team %}
-                    <span style="font-size:1.3rem;">{{ home_team.flag_emoji }}</span>
-                    <span class="mob-tname">{{ home_team.short_name or home_team.name }}</span>
-                    {% if match.is_finished %}
-                      <span class="mob-score {% if win == 'home' %}mob-score-win{% endif %}">{{ match.home_score }}</span>
-                    {% endif %}
-                  {% elif match.home_source_match_id %}
-                    {% set src = match_by_id.get(match.home_source_match_id) %}
-                    {% if src %}
-                      {% if match.home_source_outcome == 'loser' %}
-                        <span class="mob-src-text mob-src-loser">🥈 Perd. {{ src.match_label or ('Partido #' ~ src.id) }}</span>
-                      {% else %}
-                        <span class="mob-src-text mob-src-winner">🏆 Gan. {{ src.match_label or ('Partido #' ~ src.id) }}</span>
-                      {% endif %}
-                    {% else %}
-                      <span style="font-size:.9rem;color:var(--text-muted);font-style:italic;flex:1;">❔ Por definir</span>
-                    {% endif %}
+                <div class="bkpub-divider">
+                  {% if not match.is_finished and match.match_date %}
+                    <span class="bkpub-date">{{ match.match_date.strftime('%d/%m %H:%M') }}</span>
+                  {% elif not match.is_finished %}
+                    <span class="bkpub-vs">vs</span>
                   {% else %}
-                    <span style="font-size:.9rem;color:var(--text-muted);font-style:italic;flex:1;">❔ Por definir</span>
+                    <span class="bkpub-final-badge">Finalizado</span>
                   {% endif %}
                 </div>
 
-                {# Center #}
-                <div class="mob-center">
-                  {% if match.is_finished %}
-                    <div class="mob-scoreboard">
-                      <span class="mob-sb-score">{{ match.home_score }}</span>
-                      <span class="mob-sb-dash">–</span>
-                      <span class="mob-sb-score">{{ match.away_score }}</span>
-                    </div>
-                    {% if match.penalty_winner_id and match.home_score == match.away_score %}
-                      {% set pen_w = teams_by_id.get(match.penalty_winner_id) %}
-                      {% if pen_w %}
-                        <div style="font-size:.58rem;color:var(--text-muted);text-align:center;margin-top:.1rem;">
-                          Pen: {{ pen_w.short_name or pen_w.name }}
-                        </div>
-                      {% endif %}
-                    {% endif %}
-                  {% elif match.match_date %}
-                    <div class="mob-date">{{ match.match_date.strftime('%d/%m') }}<br>{{ match.match_date.strftime('%H:%M') }}</div>
-                  {% else %}
-                    <div class="mob-vs-text">vs</div>
-                  {% endif %}
-                </div>
+                {{ pub_team_row(away_team, match.away_source_match_id, match.away_source_outcome, match_by_id, win, 'away', match) }}
 
-                {# Away #}
-                <div class="mob-team mob-team-right {% if win == 'away' %}mob-winner{% elif win and win != 'draw' and win == 'home' %}mob-loser{% endif %}">
-                  {% if away_team %}
-                    {% if match.is_finished %}
-                      <span class="mob-score {% if win == 'away' %}mob-score-win{% endif %}">{{ match.away_score }}</span>
-                    {% endif %}
-                    <span class="mob-tname mob-tname-right">{{ away_team.short_name or away_team.name }}</span>
-                    <span style="font-size:1.3rem;">{{ away_team.flag_emoji }}</span>
-                  {% elif match.away_source_match_id %}
-                    {% set src = match_by_id.get(match.away_source_match_id) %}
-                    {% if src %}
-                      {% if match.away_source_outcome == 'loser' %}
-                        <span class="mob-src-text mob-src-loser" style="text-align:right;">🥈 Perd. {{ src.match_label or ('Partido #' ~ src.id) }}</span>
-                      {% else %}
-                        <span class="mob-src-text mob-src-winner" style="text-align:right;">🏆 Gan. {{ src.match_label or ('Partido #' ~ src.id) }}</span>
-                      {% endif %}
-                    {% else %}
-                      <span style="font-size:.9rem;color:var(--text-muted);font-style:italic;flex:1;text-align:right;">Por definir ❔</span>
-                    {% endif %}
-                  {% else %}
-                    <span style="font-size:.9rem;color:var(--text-muted);font-style:italic;flex:1;text-align:right;">Por definir ❔</span>
+                {% if match.is_finished and match.penalty_winner_id and match.home_score == match.away_score %}
+                  {% set pen_winner = teams_by_id.get(match.penalty_winner_id) %}
+                  {% if pen_winner %}
+                  <div class="bkpub-penalty-note">
+                    <i class="bi bi-dot"></i>{{ pen_winner.name }} gana penales
+                  </div>
                   {% endif %}
-                </div>
+                {% endif %}
 
               </div>
-
-              {# Winner badge #}
-              {% if match.is_finished %}
-                {% set winning_team = teams_by_id.get(match.home_team_id if win == 'home' else match.away_team_id) %}
-                {% if winning_team %}
-                <div class="mob-winner-badge">
-                  <i class="bi bi-trophy-fill me-1" style="color:var(--gold);"></i>
-                  {{ winning_team.name }} avanza
-                </div>
-                {% endif %}
-              {% endif %}
-
-            </div>
-          {% endfor %}
+            {% endfor %}
+          </div>
         {% else %}
-          <div class="text-center py-4 text-muted small">
-            <i class="bi bi-hourglass me-1"></i>Partidos por configurar
+          <div class="bkpub-empty-phase">
+            <i class="bi bi-hourglass" style="font-size:1.5rem;opacity:.3;"></i>
+            <span>Partidos por<br>configurar</span>
           </div>
         {% endif %}
       </div>
-    </div>
 
-    {% if not loop.last %}
-    <div class="text-center mb-3" style="color:var(--text-muted);">
-      <i class="bi bi-arrow-down-circle" style="font-size:1.3rem;opacity:.4;"></i>
-      <div style="font-size:.68rem;margin-top:.15rem;">clasificados avanzan</div>
+      {% if not loop.last %}
+      <div class="bkpub-connector-spacer"></div>
+      {% endif %}
+
+      {% endfor %}
     </div>
-    {% endif %}
-    {% endfor %}
   </div>
 
-  {# ─── Legend ──────────────────────────────────────────────────────── #}
-  <div class="card-custom mt-4" style="border-left:4px solid var(--border);">
-    <div class="card-body-custom py-3">
-      <div class="d-flex flex-wrap gap-3 align-items-center" style="font-size:.78rem;color:var(--text-muted);">
-        <strong style="color:var(--text);font-size:.82rem;">Leyenda</strong>
-        <span class="d-flex align-items-center gap-1">
-          <span style="width:10px;height:10px;border-radius:2px;background:rgba(64,145,108,.25);display:inline-block;border-left:3px solid var(--green-field);"></span>
-          Ganador del partido
-        </span>
-        <span class="d-flex align-items-center gap-1">
-          <span style="font-size:.9rem;">🏆</span> Gan. [partido] — avanza el ganador
-        </span>
-        <span class="d-flex align-items-center gap-1">
-          <span style="font-size:.9rem;">🥈</span> Perd. [partido] — tercer puesto
-        </span>
-        <span class="d-flex align-items-center gap-1">
-          <span style="font-size:.9rem;">❔</span> Equipo aún por clasificar
-        </span>
+  <div class="text-center mt-3 d-md-none" style="font-size:.8rem;color:var(--text-muted);font-weight:600;">
+    <i class="bi bi-arrows-expand-horizontal me-1"></i>Desliza lateralmente para ver todas las rondas
+  </div>
+
+  <div class="container mt-4">
+    <div class="card-custom mx-auto" style="max-width:800px; border-left:4px solid var(--border);">
+      <div class="card-body-custom py-3">
+        <div class="d-flex flex-wrap gap-3 justify-content-center align-items-center" style="font-size:.78rem;color:var(--text-muted);">
+          <strong style="color:var(--text);font-size:.82rem;">Leyenda</strong>
+          <span class="d-flex align-items-center gap-1">
+            <span style="width:10px;height:10px;border-radius:2px;background:rgba(64,145,108,.1);display:inline-block;border-left:3px solid var(--green-field);"></span>
+            Ganador
+          </span>
+          <span class="d-flex align-items-center gap-1">
+            <span style="width:10px;height:10px;border-radius:2px;border:1.5px solid var(--primary);display:inline-block;"></span>
+            En juego / Listo
+          </span>
+          <span class="d-flex align-items-center gap-1">
+            <span style="font-size:.9rem;">❔</span> Pendiente
+          </span>
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="text-center mt-4 mb-2">
-    <a href="{{ url_for('public.event_detail', event_id=event.id) }}" class="btn-outline-custom">
-      <i class="bi bi-arrow-left me-1"></i>Volver al evento
-    </a>
+    <div class="text-center mt-4 mb-2">
+      <a href="{{ url_for('public.event_detail', event_id=event.id) }}" class="btn-outline-custom">
+        <i class="bi bi-arrow-left me-1"></i>Volver al evento
+      </a>
+    </div>
   </div>
 
 </div>
 
-{# ─── Styles ───────────────────────────────────────────────────────────── #}
 <style>
 /* ═══════════════════════════════════════════════════════
-   DESKTOP FIXTURE
+   RESPONSIVE FIXTURE SCROLL
 ═══════════════════════════════════════════════════════ */
 .bkpub-scroll-wrapper {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  padding: .75rem .25rem 1.5rem;
+  padding: 1rem 1.5rem 3rem;
   scrollbar-width: thin;
   scrollbar-color: var(--silver) transparent;
+  position: relative;
+  min-height: 400px;
 }
-.bkpub-scroll-wrapper::-webkit-scrollbar { height: 5px; }
-.bkpub-scroll-wrapper::-webkit-scrollbar-thumb { background: var(--silver); border-radius: 3px; }
+.bkpub-scroll-wrapper::-webkit-scrollbar { height: 6px; }
+.bkpub-scroll-wrapper::-webkit-scrollbar-thumb { background: var(--silver); border-radius: 4px; }
+
+#bracket-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  min-width: 100%;
+}
 
 .bkpub-bracket-row {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 0;
   min-width: max-content;
+  position: relative;
+  z-index: 1;
 }
 
 /* ── Phase column ─────────────────── */
@@ -377,8 +251,8 @@
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  min-width: 185px;
-  max-width: 210px;
+  min-width: 220px;
+  max-width: 240px;
 }
 .bkpub-phase-hdr {
   display: flex;
@@ -386,15 +260,16 @@
   align-items: center;
   gap: .2rem;
   padding: .6rem .5rem;
-  margin-bottom: .75rem;
+  margin-bottom: 1.5rem;
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-soft) 100%);
   border-radius: var(--radius-sm);
   text-align: center;
+  flex-shrink: 0;
 }
 .bkpub-phase-name {
   font-family: 'Outfit', sans-serif;
   font-weight: 800;
-  font-size: .82rem;
+  font-size: .85rem;
   color: #fff;
   letter-spacing: .2px;
 }
@@ -408,7 +283,10 @@
 .bkpub-matches-col {
   display: flex;
   flex-direction: column;
-  gap: .6rem;
+  justify-content: space-around;
+  flex: 1;
+  gap: 1.5rem;
+  padding-bottom: 1rem;
 }
 
 /* ── Individual match card ────────── */
@@ -418,11 +296,31 @@
   border-radius: var(--radius-sm);
   overflow: hidden;
   transition: var(--transition);
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.03);
 }
 .bkpub-match:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-.bkpub-match.bkpub-done  { border-color: rgba(64,145,108,.4); }
-.bkpub-match.bkpub-ready { border-color: rgba(13,27,42,.25);  }
-.bkpub-match.bkpub-tbd   { border-color: var(--border); background: #fafafa; }
+
+/* ESTADOS VISUALES */
+.bkpub-match.bkpub-done  { 
+  border-color: rgba(64,145,108,.3); 
+}
+.bkpub-match.bkpub-ready { 
+  border-color: var(--primary); 
+  box-shadow: 0 0 0 1px var(--primary); 
+}
+.bkpub-match.bkpub-tbd   { 
+  border-color: var(--border); 
+  background: #fdfdfd; 
+  opacity: 0.95; 
+}
+
+/* Spacer para 3er puesto */
+.bkpub-third-place {
+  margin-top: 3.5rem; 
+  border-style: dashed;
+}
 
 .bkpub-match-lbl {
   font-size: .62rem;
@@ -432,26 +330,31 @@
   letter-spacing: .4px;
   padding: .3rem .6rem .1rem;
   text-align: center;
+  background: rgba(0,0,0,.02);
+  border-bottom: 1px solid rgba(0,0,0,.03);
 }
 
 /* ── Team row ─────────────────────── */
 .bkpub-team-row {
   display: flex;
   align-items: center;
-  gap: .35rem;
-  padding: .45rem .6rem;
-  min-height: 36px;
+  gap: .4rem;
+  padding: .5rem .7rem;
+  min-height: 40px;
   transition: background .15s;
 }
 .bkpub-team-row.bkpub-winner {
-  background: rgba(64,145,108,.1);
+  background: rgba(64,145,108,.08);
   border-left: 3px solid var(--green-field);
 }
-.bkpub-team-row.bkpub-loser-row { opacity: .6; }
+.bkpub-team-row.bkpub-winner .bkpub-tname {
+  font-weight: 800;
+}
+.bkpub-team-row.bkpub-loser-row { opacity: .55; }
 
-.bkpub-flag { font-size: 1.05rem; line-height: 1; flex-shrink: 0; }
+.bkpub-flag { font-size: 1.1rem; line-height: 1; flex-shrink: 0; }
 .bkpub-tname {
-  font-size: .78rem;
+  font-size: .8rem;
   font-weight: 600;
   color: var(--text);
   flex: 1;
@@ -470,54 +373,49 @@
 }
 .bkpub-score.bkpub-score-win { color: var(--green-field); }
 
-/* ── Source origin in desktop rows ── */
-.bkpub-src-row {
-  font-size: .72rem;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-}
-.bkpub-src-winner { color: #065f46; }
-.bkpub-src-loser  { color: #7a4d1d; }
-
-/* ── TBD rows ─────────────────────── */
+/* ── Source origin & TBD ──────────── */
 .bkpub-tbd-row {
   display: flex;
   align-items: center;
-  gap: .35rem;
+  gap: .4rem;
   flex: 1;
+  overflow: hidden;
 }
 .bkpub-tbd-dot {
-  width: 1.15rem;
-  height: 1.15rem;
-  background: var(--border);
-  border-radius: 3px;
+  width: 1.25rem;
+  height: 1.25rem;
+  background: rgba(0,0,0,.04);
+  border: 1px dashed var(--border);
+  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: .65rem;
   color: var(--text-muted);
-  font-weight: 700;
   flex-shrink: 0;
 }
-.bkpub-tbd-name {
-  font-size: .72rem;
+.bkpub-tbd-name, .bkpub-src-row {
+  font-size: .75rem;
   color: var(--text-muted);
   font-style: italic;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.bkpub-src-winner { color: rgba(64,145,108,.7); }
+.bkpub-src-loser  { color: rgba(13,27,42,.5); }
 
 /* ── Divider ──────────────────────── */
 .bkpub-divider {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: .15rem .6rem;
-  border-top: 1px dashed var(--border);
-  border-bottom: 1px dashed var(--border);
-  background: rgba(0,0,0,.02);
-  min-height: 22px;
+  padding: .2rem .6rem;
+  border-top: 1px solid rgba(0,0,0,.04);
+  border-bottom: 1px solid rgba(0,0,0,.04);
+  background: rgba(0,0,0,.015);
+  min-height: 24px;
 }
 .bkpub-vs    { font-size: .62rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
 .bkpub-date  { font-size: .6rem; color: var(--text-muted); font-weight: 600; }
@@ -525,11 +423,12 @@
 
 /* ── Penalty note ─────────────────── */
 .bkpub-penalty-note {
-  font-size: .6rem;
+  font-size: .65rem;
   color: var(--text-muted);
   text-align: center;
-  padding: .15rem .5rem .3rem;
+  padding: .2rem .5rem .3rem;
   border-top: 1px solid var(--border);
+  font-weight: 600;
 }
 
 /* ── Empty phase ──────────────────── */
@@ -545,96 +444,83 @@
   text-align: center;
   border: 1.5px dashed var(--border);
   border-radius: var(--radius-sm);
+  flex: 1;
 }
 
-/* ── Phase connector ──────────────── */
-.bkpub-connector {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  padding-top: 56px;
+/* ── Phase connector spacer (width) ── */
+.bkpub-connector-spacer {
+  width: 50px;
   flex-shrink: 0;
-}
-.bkpub-conn-line  { flex: 1; width: 1px; border-left: 2px dashed rgba(13,27,42,.15); min-height: 20px; }
-.bkpub-conn-arrow { font-size: 1.5rem; color: rgba(13,27,42,.25); line-height: 1; flex-shrink: 0; }
-
-/* ═══════════════════════════════════════════════════════
-   MOBILE FIXTURE
-═══════════════════════════════════════════════════════ */
-.mob-match-row   { padding: .85rem 1rem; }
-.mob-match-border { border-bottom: 1px solid var(--border); }
-.mob-match-lbl {
-  font-size: .68rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: .4px;
-  margin-bottom: .4rem;
-  text-align: center;
-}
-.mob-teams { display: flex; align-items: center; gap: .5rem; }
-.mob-team {
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  flex: 1;
-  padding: .4rem .5rem;
-  border-radius: 6px;
-  transition: background .15s;
-}
-.mob-team-right { justify-content: flex-end; flex-direction: row-reverse; }
-.mob-team.mob-winner { background: rgba(64,145,108,.1); border-left: 3px solid var(--green-field); }
-.mob-team-right.mob-winner { border-left: none; border-right: 3px solid var(--green-field); }
-.mob-team.mob-loser { opacity: .55; }
-.mob-tname {
-  font-size: .85rem;
-  font-weight: 700;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 90px;
-}
-.mob-tname-right { text-align: right; }
-.mob-score { font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 800; color: var(--text-muted); flex-shrink: 0; }
-.mob-score.mob-score-win { color: var(--green-field); }
-
-/* Source origin (mobile) */
-.mob-src-text {
-  font-size: .72rem;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-}
-.mob-src-winner { color: #065f46; }
-.mob-src-loser  { color: #7a4d1d; }
-
-/* Center section */
-.mob-center { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 56px; flex-shrink: 0; }
-.mob-scoreboard { display: flex; align-items: center; gap: .2rem; background: var(--primary); color: #fff; border-radius: 6px; padding: .25rem .5rem; }
-.mob-sb-score  { font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 800; }
-.mob-sb-dash   { font-size: .8rem; opacity: .6; margin: 0 .1rem; }
-.mob-date      { font-size: .65rem; color: var(--text-muted); font-weight: 700; text-align: center; line-height: 1.3; }
-.mob-vs-text   { font-size: .7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
-
-/* Winner badge */
-.mob-winner-badge {
-  margin-top: .5rem;
-  text-align: center;
-  font-size: .7rem;
-  font-weight: 700;
-  color: var(--green-field);
-  padding: .2rem .5rem;
-  background: rgba(64,145,108,.1);
-  border-radius: 20px;
-  display: block;
-  width: fit-content;
-  margin: .5rem auto 0;
 }
 </style>
 
+{% block extra_js %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const svg = document.getElementById('bracket-lines');
+    const container = document.getElementById('bracket-container');
+    const matches = document.querySelectorAll('.bkpub-match');
+    
+    if (!svg || !container) return;
+    
+    function drawLines() {
+        svg.innerHTML = '';
+        const containerRect = container.getBoundingClientRect();
+        
+        svg.style.width = container.scrollWidth + 'px';
+        svg.style.height = container.scrollHeight + 'px';
+        
+        matches.forEach(match => {
+            const matchId = match.dataset.matchId;
+            const homeSrcId = match.dataset.homeSrc;
+            const awaySrcId = match.dataset.awaySrc;
+            
+            const matchRect = match.getBoundingClientRect();
+            // X position: Left border of the destination match, relative to scroll container
+            const destX = matchRect.left - containerRect.left + container.scrollLeft;
+            
+            if (homeSrcId) drawLine(homeSrcId, match.querySelector('#team-home-' + matchId), destX, match);
+            if (awaySrcId) drawLine(awaySrcId, match.querySelector('#team-away-' + matchId), destX, match);
+        });
+    }
+    
+    function drawLine(sourceMatchId, teamRowElement, destX, destMatchElement) {
+        const sourceMatch = document.getElementById('match-' + sourceMatchId);
+        if (!sourceMatch || !teamRowElement) return;
+        
+        const sourceRect = sourceMatch.getBoundingClientRect();
+        const teamRowRect = teamRowElement.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        
+        const startX = sourceRect.right - containerRect.left + container.scrollLeft;
+        const startY = sourceRect.top + (sourceRect.height / 2) - containerRect.top + container.scrollTop;
+        
+        const endY = teamRowRect.top + (teamRowRect.height / 2) - containerRect.top + container.scrollTop;
+        
+        const isReady = destMatchElement.classList.contains('bkpub-ready') || destMatchElement.classList.contains('bkpub-done');
+        const strokeColor = isReady ? 'var(--primary)' : 'rgba(13,27,42,0.15)';
+        const strokeWidth = isReady ? 2.5 : 1.5;
+        
+        const curveOffset = 25;
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        
+        const d = `M ${startX} ${startY} C ${startX + curveOffset} ${startY}, ${destX - curveOffset} ${endY}, ${destX} ${endY}`;
+                     
+        path.setAttribute('d', d);
+        path.setAttribute('fill', 'transparent');
+        path.setAttribute('stroke', strokeColor);
+        path.setAttribute('stroke-width', strokeWidth);
+        
+        svg.appendChild(path);
+    }
+
+    requestAnimationFrame(drawLines);
+    window.addEventListener('resize', () => requestAnimationFrame(drawLines));
+    
+    setTimeout(drawLines, 200);
+    setTimeout(drawLines, 800);
+});
+</script>
+{% endblock %}
 {% endblock %}
