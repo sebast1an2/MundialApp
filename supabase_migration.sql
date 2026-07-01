@@ -155,8 +155,39 @@ WHERE table_schema = 'public'
    OR (table_name = 'events'       AND column_name IN ('can_view_others_predictions','qualifies_third_place',
                                                         'third_place_slots','participation_fee',
                                                         'prize_first','prize_second','prize_third',
+                                                        'prize_type',
                                                         'nequi_number','template_id'))
    OR (table_name = 'participants' AND column_name = 'payment_confirmed')
    OR  table_name IN ('event_templates','template_phases','template_scoring_configs')
   )
 ORDER BY table_name, column_name;
+
+
+-- =============================================================================
+-- SECCIÓN 8 — Tipo de premios flexible (Dinero / Porcentaje)
+-- Generado: 2026-07-01
+-- Seguro de ejecutar múltiples veces (ADD COLUMN IF NOT EXISTS)
+-- =============================================================================
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 8.1  Nueva columna prize_type en events
+--      DEFAULT 'money' garantiza que todos los eventos existentes continúen
+--      funcionando exactamente igual (sin intervención adicional).
+-- ─────────────────────────────────────────────────────────────────────────────
+
+ALTER TABLE events
+    ADD COLUMN IF NOT EXISTS prize_type VARCHAR(10) DEFAULT 'money';
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 8.2  Verificación — confirma que la columna existe y tiene el default correcto
+-- ─────────────────────────────────────────────────────────────────────────────
+
+SELECT column_name, data_type, column_default, is_nullable
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name   = 'events'
+  AND column_name  = 'prize_type';
+
+-- Resultado esperado:
+--   column_name | data_type         | column_default | is_nullable
+--   prize_type  | character varying | 'money'::...   | YES

@@ -201,9 +201,24 @@ def events_edit(event_id):
 
         event.third_place_slots     = _parse_int_field('third_place_slots', default=0)
         event.participation_fee = _parse_int_field('participation_fee')
+        event.prize_type        = request.form.get('prize_type', 'money')
+        if event.prize_type not in ('money', 'percentage'):
+            event.prize_type = 'money'
         event.prize_first       = _parse_int_field('prize_first')
         event.prize_second      = _parse_int_field('prize_second')
         event.prize_third       = _parse_int_field('prize_third')
+
+        # Validar que los porcentajes sumen exactamente 100
+        if event.prize_type == 'percentage':
+            total_pct = int(event.prize_first or 0) + int(event.prize_second or 0) + int(event.prize_third or 0)
+            if total_pct != 100:
+                flash(
+                    f'Error: la suma de los porcentajes debe ser exactamente 100% '
+                    f'(actualmente suma {total_pct}%). Corrígelos antes de guardar.',
+                    'danger'
+                )
+                return render_template('admin/event_form.html', event=event)
+
         event.nequi_number      = request.form.get('nequi_number', '').strip()[:20]
         db.session.commit()
         flash('Evento actualizado.', 'success')

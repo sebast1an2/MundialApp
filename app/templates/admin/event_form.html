@@ -143,39 +143,99 @@
           </div>
         </div>
 
-        <div class="row g-3 mb-3">
+        {# ── Tipo de premios ── #}
+        <div class="mb-3" style="background: rgba(99,102,241,.06); border: 1.5px solid rgba(99,102,241,.25); border-radius: var(--radius-sm); padding: 1rem 1.1rem;">
+          <div class="form-label-custom mb-2" style="font-size:.85rem; color: var(--primary);">
+            🏅 Tipo de premios
+          </div>
+          <div class="d-flex gap-4 flex-wrap">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="prize_type" id="prize_type_money"
+                     value="money"
+                     {% if not event.prize_type or event.prize_type == 'money' %}checked{% endif %}
+                     onchange="onPrizeTypeChange(this.value)">
+              <label class="form-check-label fw-semibold" for="prize_type_money" style="cursor:pointer;">
+                💵 Dinero
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="prize_type" id="prize_type_percentage"
+                     value="percentage"
+                     {% if event.prize_type == 'percentage' %}checked{% endif %}
+                     onchange="onPrizeTypeChange(this.value)">
+              <label class="form-check-label fw-semibold" for="prize_type_percentage" style="cursor:pointer;">
+                📊 Porcentaje
+              </label>
+            </div>
+          </div>
+          <small class="text-muted d-block mt-2" id="prize_type_hint" style="font-size:.75rem;">
+            <span id="hint_money">Se configuran montos fijos en pesos.</span>
+            <span id="hint_pct" style="display:none;">Defina qué porcentaje del total recaudado corresponde a cada puesto. La suma debe ser exactamente 100%.</span>
+          </small>
+        </div>
+
+        {# ── Campos de premios ── #}
+        <div class="row g-3 mb-3" id="prize_fields_row">
           <div class="col-md-4">
-            <label class="form-label-custom">🥇 Premio 1er lugar</label>
-            <div class="input-group">
-              <span class="input-group-text" style="background: var(--bg); border: 2px solid var(--border); border-right: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); color: #b8860b; font-weight:700;">$</span>
-              <input type="number" name="prize_first" min="0" step="1"
-                     class="form-control-custom"
+            <label class="form-label-custom" id="lbl_prize_first">
+              🥇 Premio 1er lugar
+            </label>
+            <div class="input-group" id="grp_prize_first">
+              <span class="input-group-text prize-prefix"
+                    style="background: var(--bg); border: 2px solid var(--border); border-right: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); color: #b8860b; font-weight:700;">$</span>
+              <input type="number" name="prize_first" id="inp_prize_first"
+                     min="0" step="1" class="form-control-custom"
                      style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0; border-left: none;"
                      value="{{ (event.prize_first | int) if event.prize_first else 0 }}"
-                     placeholder="0">
+                     placeholder="0" oninput="updatePctCounter()">
+              <span class="input-group-text prize-suffix"
+                    style="display:none; background: var(--bg); border: 2px solid var(--border); border-left: none; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; color: #b8860b; font-weight:700;">%</span>
             </div>
           </div>
           <div class="col-md-4">
-            <label class="form-label-custom">🥈 Premio 2do lugar</label>
-            <div class="input-group">
-              <span class="input-group-text" style="background: var(--bg); border: 2px solid var(--border); border-right: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); color: var(--silver); font-weight:700;">$</span>
-              <input type="number" name="prize_second" min="0" step="1"
-                     class="form-control-custom"
+            <label class="form-label-custom" id="lbl_prize_second">
+              🥈 Premio 2do lugar
+            </label>
+            <div class="input-group" id="grp_prize_second">
+              <span class="input-group-text prize-prefix"
+                    style="background: var(--bg); border: 2px solid var(--border); border-right: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); color: var(--silver); font-weight:700;">$</span>
+              <input type="number" name="prize_second" id="inp_prize_second"
+                     min="0" step="1" class="form-control-custom"
                      style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0; border-left: none;"
                      value="{{ (event.prize_second | int) if event.prize_second else 0 }}"
-                     placeholder="0">
+                     placeholder="0" oninput="updatePctCounter()">
+              <span class="input-group-text prize-suffix"
+                    style="display:none; background: var(--bg); border: 2px solid var(--border); border-left: none; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; color: var(--silver); font-weight:700;">%</span>
             </div>
           </div>
           <div class="col-md-4">
-            <label class="form-label-custom">🥉 Premio 3er lugar</label>
-            <div class="input-group">
-              <span class="input-group-text" style="background: var(--bg); border: 2px solid var(--border); border-right: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); color: var(--bronze); font-weight:700;">$</span>
-              <input type="number" name="prize_third" min="0" step="1"
-                     class="form-control-custom"
+            <label class="form-label-custom" id="lbl_prize_third">
+              🥉 Premio 3er lugar
+            </label>
+            <div class="input-group" id="grp_prize_third">
+              <span class="input-group-text prize-prefix"
+                    style="background: var(--bg); border: 2px solid var(--border); border-right: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); color: var(--bronze); font-weight:700;">$</span>
+              <input type="number" name="prize_third" id="inp_prize_third"
+                     min="0" step="1" class="form-control-custom"
                      style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0; border-left: none;"
                      value="{{ (event.prize_third | int) if event.prize_third else 0 }}"
-                     placeholder="0">
+                     placeholder="0" oninput="updatePctCounter()">
+              <span class="input-group-text prize-suffix"
+                    style="display:none; background: var(--bg); border: 2px solid var(--border); border-left: none; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; color: var(--bronze); font-weight:700;">%</span>
             </div>
+          </div>
+        </div>
+
+        {# Contador de suma de porcentajes #}
+        <div id="pct_counter_wrap" style="display:none; margin-bottom:.75rem;">
+          <div id="pct_counter"
+               style="display:inline-flex; align-items:center; gap:.5rem; padding:.35rem .85rem;
+                      border-radius: var(--radius-sm); font-size:.85rem; font-weight:600;
+                      background: rgba(99,102,241,.1); border: 1.5px solid rgba(99,102,241,.3); color: var(--primary);">
+            <span>Σ Suma:</span>
+            <span id="pct_total">0</span>%
+            <span id="pct_ok" style="display:none; color: #16a34a;">✔ Correcto</span>
+            <span id="pct_err" style="color: #dc2626;">← debe sumar 100%</span>
           </div>
         </div>
 
@@ -194,6 +254,82 @@
           <small class="text-muted">Se mostrará a los participantes en la ventana informativa de inscripción.</small>
         </div>
       </div>
+
+      <script>
+        // ── Inicialización según el tipo de premio guardado ─────────────────
+        (function () {
+          var saved = '{{ event.prize_type or "money" }}';
+          onPrizeTypeChange(saved);
+        })();
+
+        function onPrizeTypeChange(type) {
+          var isPct = (type === 'percentage');
+
+          // Prefijos / sufijos
+          document.querySelectorAll('.prize-prefix').forEach(function (el) {
+            el.style.display = isPct ? 'none' : '';
+          });
+          document.querySelectorAll('.prize-suffix').forEach(function (el) {
+            el.style.display = isPct ? '' : 'none';
+          });
+
+          // Hints
+          document.getElementById('hint_money').style.display = isPct ? 'none' : '';
+          document.getElementById('hint_pct').style.display   = isPct ? '' : 'none';
+
+          // Contador
+          document.getElementById('pct_counter_wrap').style.display = isPct ? '' : 'none';
+
+          // Ajustar atributos de los inputs
+          ['inp_prize_first', 'inp_prize_second', 'inp_prize_third'].forEach(function (id) {
+            var inp = document.getElementById(id);
+            if (isPct) {
+              inp.setAttribute('max', '100');
+              inp.setAttribute('min', '0');
+              inp.style.borderRadius = '0';
+            } else {
+              inp.removeAttribute('max');
+              inp.setAttribute('min', '0');
+              inp.style.borderRadius = '';
+            }
+          });
+
+          // Labels
+          var lbls = ['lbl_prize_first', 'lbl_prize_second', 'lbl_prize_third'];
+          var base = isPct
+            ? ['🥇 1er lugar (%)', '🥈 2do lugar (%)', '🥉 3er lugar (%)']
+            : ['🥇 Premio 1er lugar', '🥈 Premio 2do lugar', '🥉 Premio 3er lugar'];
+          lbls.forEach(function (id, i) {
+            document.getElementById(id).textContent = base[i];
+          });
+
+          updatePctCounter();
+        }
+
+        function updatePctCounter() {
+          var isPct = document.getElementById('prize_type_percentage').checked;
+          if (!isPct) return;
+          var v1 = parseInt(document.getElementById('inp_prize_first').value)  || 0;
+          var v2 = parseInt(document.getElementById('inp_prize_second').value) || 0;
+          var v3 = parseInt(document.getElementById('inp_prize_third').value)  || 0;
+          var total = v1 + v2 + v3;
+          document.getElementById('pct_total').textContent = total;
+          var ok = (total === 100);
+          document.getElementById('pct_ok').style.display  = ok ? '' : 'none';
+          document.getElementById('pct_err').style.display = ok ? 'none' : '';
+          // Cambiar color del contador
+          var counter = document.getElementById('pct_counter');
+          if (ok) {
+            counter.style.background    = 'rgba(22,163,74,.1)';
+            counter.style.borderColor   = 'rgba(22,163,74,.4)';
+            counter.style.color         = '#16a34a';
+          } else {
+            counter.style.background    = 'rgba(220,38,38,.08)';
+            counter.style.borderColor   = 'rgba(220,38,38,.3)';
+            counter.style.color         = '#dc2626';
+          }
+        }
+      </script>
       {% endif %}
       <div class="mb-4">
         <label class="form-label-custom">Descripción</label>

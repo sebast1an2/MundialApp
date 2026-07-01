@@ -54,28 +54,72 @@ Solo en step == 'cedula' (primer acceso al evento)
           </div>
         </div>
 
-        {# 2 · Valor total del premio #}
-        {% set total_prize = (event.prize_first or 0) | int + (event.prize_second or 0) | int + (event.prize_third or 0)
-        | int %}
-        {% if total_prize > 0 %}
+        {# 2 · Premios / Distribución — condicional por prize_type #}
+        {% set is_pct = (event.prize_type == 'percentage') %}
+        {% set has_prizes = (event.prize_first or 0) > 0 or (event.prize_second or 0) > 0 or (event.prize_third or 0) > 0 %}
+
+        {% if has_prizes %}
         <div class="info-section mb-4">
+
+          {% if is_pct %}
+          {# ── Modo Porcentaje ── #}
+          <div class="info-section-title">
+            <i class="bi bi-trophy-fill me-2" style="color: #b8860b;"></i>Distribución de premios
+          </div>
+          <div class="row g-3 mt-1">
+            {% if (event.prize_first or 0) > 0 %}
+            <div class="col-md-4">
+              <div class="info-prize-card gold">
+                <div class="prize-medal">🥇</div>
+                <div class="prize-pos">Primer lugar</div>
+                <div class="prize-amount">{{ event.prize_first | int }}%</div>
+              </div>
+            </div>
+            {% endif %}
+            {% if (event.prize_second or 0) > 0 %}
+            <div class="col-md-4">
+              <div class="info-prize-card silver">
+                <div class="prize-medal">🥈</div>
+                <div class="prize-pos">Segundo lugar</div>
+                <div class="prize-amount">{{ event.prize_second | int }}%</div>
+              </div>
+            </div>
+            {% endif %}
+            {% if (event.prize_third or 0) > 0 %}
+            <div class="col-md-4">
+              <div class="info-prize-card bronze">
+                <div class="prize-medal">🥉</div>
+                <div class="prize-pos">Tercer lugar</div>
+                <div class="prize-amount">{{ event.prize_third | int }}%</div>
+              </div>
+            </div>
+            {% endif %}
+          </div>
+          {# Nota informativa de porcentajes #}
+          <p class="text-muted mt-3 mb-0"
+            style="font-size: .78rem; line-height: 1.5; border-left: 3px solid var(--border); padding-left: .75rem;">
+            <i class="bi bi-info-circle me-1"></i>
+            Los porcentajes corresponden a la distribución del dinero recaudado por las inscripciones del evento.
+          </p>
+
+          {% else %}
+          {# ── Modo Dinero (comportamiento original) ── #}
+          {# Valor total del premio #}
+          {% set total_prize = (event.prize_first or 0) | int + (event.prize_second or 0) | int + (event.prize_third or 0) | int %}
+          {% if total_prize > 0 %}
           <div class="info-section-title">
             <i class="bi bi-cash-coin me-2" style="color: var(--green-field);"></i>Valor total del premio
           </div>
-          <div class="info-prize-total mt-2">
+          <div class="info-prize-total mt-2 mb-3">
             <span
               style="font-size: 2.2rem; font-family: 'Outfit', sans-serif; font-weight: 800; color: var(--green-field);">
               ${{ total_prize | format_currency }}
             </span>
             <span class="text-muted ms-2" style="font-size: .9rem;">en premios totales</span>
           </div>
-        </div>
-        {% endif %}
+          {% endif %}
 
-        {# 3 · Premios para ganadores #}
-        {% if (event.prize_first or 0) > 0 or (event.prize_second or 0) > 0 or (event.prize_third or 0) > 0 %}
-        <div class="info-section mb-4">
-          <div class="info-section-title">
+          <div class="info-section-title mt-2">
             <i class="bi bi-trophy-fill me-2" style="color: #b8860b;"></i>Premios para ganadores
           </div>
           <div class="row g-3 mt-1">
@@ -107,8 +151,7 @@ Solo en step == 'cedula' (primer acceso al evento)
             </div>
             {% endif %}
           </div>
-
-          {# 4 · Condición de ajuste de premios #}
+          {# Condición de ajuste de premios #}
           <p class="text-muted mt-3 mb-0"
             style="font-size: .78rem; line-height: 1.5; border-left: 3px solid var(--border); padding-left: .75rem;">
             <i class="bi bi-info-circle me-1"></i>
@@ -116,6 +159,8 @@ Solo en step == 'cedula' (primer acceso al evento)
             los premios proporcionalmente según la cantidad de participantes inscritos y el valor efectivamente
             recaudado.
           </p>
+          {% endif %}
+
         </div>
         {% endif %}
 
