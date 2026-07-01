@@ -234,8 +234,8 @@
                       background: rgba(99,102,241,.1); border: 1.5px solid rgba(99,102,241,.3); color: var(--primary);">
             <span>Σ Suma:</span>
             <span id="pct_total">0</span>%
-            <span id="pct_ok" style="display:none; color: #16a34a;">✔ Correcto</span>
-            <span id="pct_err" style="color: #dc2626;">← debe sumar 100%</span>
+            <span id="pct_ok" style="display:none; color: #16a34a;">✔ Válido</span>
+            <span id="pct_err" style="display:none; color: #dc2626;">✘ No puede superar 100%</span>
           </div>
         </div>
 
@@ -314,19 +314,19 @@
           var v3 = parseInt(document.getElementById('inp_prize_third').value)  || 0;
           var total = v1 + v2 + v3;
           document.getElementById('pct_total').textContent = total;
-          var ok = (total === 100);
-          document.getElementById('pct_ok').style.display  = ok ? '' : 'none';
-          document.getElementById('pct_err').style.display = ok ? 'none' : '';
+          var over = (total > 100);
+          document.getElementById('pct_ok').style.display  = over ? 'none' : '';
+          document.getElementById('pct_err').style.display = over ? '' : 'none';
           // Cambiar color del contador
           var counter = document.getElementById('pct_counter');
-          if (ok) {
-            counter.style.background    = 'rgba(22,163,74,.1)';
-            counter.style.borderColor   = 'rgba(22,163,74,.4)';
-            counter.style.color         = '#16a34a';
-          } else {
+          if (over) {
             counter.style.background    = 'rgba(220,38,38,.08)';
             counter.style.borderColor   = 'rgba(220,38,38,.3)';
             counter.style.color         = '#dc2626';
+          } else {
+            counter.style.background    = 'rgba(22,163,74,.1)';
+            counter.style.borderColor   = 'rgba(22,163,74,.4)';
+            counter.style.color         = '#16a34a';
           }
         }
       </script>

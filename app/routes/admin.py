@@ -208,12 +208,12 @@ def events_edit(event_id):
         event.prize_second      = _parse_int_field('prize_second')
         event.prize_third       = _parse_int_field('prize_third')
 
-        # Validar que los porcentajes sumen exactamente 100
+        # Validar que los porcentajes no superen 100
         if event.prize_type == 'percentage':
             total_pct = int(event.prize_first or 0) + int(event.prize_second or 0) + int(event.prize_third or 0)
-            if total_pct != 100:
+            if total_pct > 100:
                 flash(
-                    f'Error: la suma de los porcentajes debe ser exactamente 100% '
+                    f'Error: la suma de los porcentajes no puede superar el 100% '
                     f'(actualmente suma {total_pct}%). Corrígelos antes de guardar.',
                     'danger'
                 )
