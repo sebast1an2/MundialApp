@@ -513,17 +513,38 @@ def get_available_teams_for_phase(event_id, phase):
     else:
         # Previous phase was also knockout.
         #
-        # Priority 1 — Fixture connections already configured for THIS phase:
-        #   Read home_source_outcome / away_source_outcome from existing matches
-        #   in this phase.  If a slot needs 'winner' → include winners from the
-        #   source match.  If it needs 'loser' → include losers.
-        #   This correctly separates Final (winner slots) from 3rd/4th (loser slots).
+        # Base pool — ALWAYS include all teams that participated in prev_phase.
+        # This ensures the admin always sees the full set of eligible teams
+        # when adding a new match, regardless of how many matches in this phase
+        # already have fixture (source) links configured.
         #
-        # Priority 2 — No Fixture connections yet (fallback):
-        #   Show ALL teams that played in the previous phase so the admin can
-        #   pick manually.  advance_bracket is unaffected — it uses the FK links
-        #   directly and never calls this function.
+        # Additionally, if existing matches in this phase have fixture connections
+        # (home_source_match_id / away_source_match_id), also include teams from
+        # those upstream source matches (e.g. upstream TBD or already-finished
+        # matches), so the full candidate pool is always available.
+        #
+        # NOTE: advance_bracket uses FK links directly and never calls this
+        # function, so this change has no effect on automatic bracket advancement.
 
+        all_team_ids = set()
+
+        # ── Step 1: always seed pool with ALL teams from the previous phase ──
+        prev_matches = Match.query.filter_by(phase_id=prev_phase.id).all()
+        upstream_source_ids = set()
+        for m in prev_matches:
+            if m.home_team_id: all_team_ids.add(m.home_team_id)
+            if m.away_team_id: all_team_ids.add(m.away_team_id)
+            if m.home_source_match_id: upstream_source_ids.add(m.home_source_match_id)
+            if m.away_source_match_id: upstream_source_ids.add(m.away_source_match_id)
+
+        # Walk one level further back (e.g. TBD slots in prev_phase fed by upstream matches)
+        if upstream_source_ids:
+            for m in Match.query.filter(Match.id.in_(upstream_source_ids)).all():
+                if m.home_team_id: all_team_ids.add(m.home_team_id)
+                if m.away_team_id: all_team_ids.add(m.away_team_id)
+
+        # ── Step 2: also add teams from fixture-linked source matches in THIS phase ──
+        # (covers cases where an existing match points to a source not yet in prev_phase)
         this_phase_matches = Match.query.filter_by(phase_id=phase.id).all()
         linked_source_ids  = set()
         needs_winner       = False
@@ -543,14 +564,10 @@ def get_available_teams_for_phase(event_id, phase):
                 else:
                     needs_winner = True
 
-        all_team_ids = set()
-
         if linked_source_ids:
-            # Fixture-guided: collect teams from the exact source matches
             source_matches = Match.query.filter(Match.id.in_(linked_source_ids)).all()
             for m in source_matches:
                 if not m.is_finished:
-                    # Match pending — both teams are potential candidates
                     if m.home_team_id: all_team_ids.add(m.home_team_id)
                     if m.away_team_id: all_team_ids.add(m.away_team_id)
                 else:
@@ -561,24 +578,6 @@ def get_available_teams_for_phase(event_id, phase):
                         m.home_team_id if result == 'away' else None)
                     if needs_winner and w: all_team_ids.add(w)
                     if needs_loser  and l: all_team_ids.add(l)
-        else:
-            # No Fixture links yet — show participants from prev phase.
-            # Also walk one level further back: if the prev_phase itself was
-            # fed by loser-connections (e.g. 3ro/4to between Semis and Final),
-            # include the teams from those upstream source matches too, so the
-            # admin can still pick the winners for the Final.
-            prev_matches = Match.query.filter_by(phase_id=prev_phase.id).all()
-            upstream_source_ids = set()
-            for m in prev_matches:
-                if m.home_team_id: all_team_ids.add(m.home_team_id)
-                if m.away_team_id: all_team_ids.add(m.away_team_id)
-                if m.home_source_match_id: upstream_source_ids.add(m.home_source_match_id)
-                if m.away_source_match_id: upstream_source_ids.add(m.away_source_match_id)
-
-            if upstream_source_ids:
-                for m in Match.query.filter(Match.id.in_(upstream_source_ids)).all():
-                    if m.home_team_id: all_team_ids.add(m.home_team_id)
-                    if m.away_team_id: all_team_ids.add(m.away_team_id)
 
         if all_team_ids:
             available_teams = Team.query.filter(
