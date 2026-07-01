@@ -220,6 +220,18 @@ def events_edit(event_id):
                 return render_template('admin/event_form.html', event=event)
 
         event.nequi_number      = request.form.get('nequi_number', '').strip()[:20]
+
+        # Fecha límite de pago (opcional)
+        deadline_str = request.form.get('payment_deadline', '').strip()
+        if deadline_str:
+            from datetime import date as _date
+            try:
+                event.payment_deadline = _date.fromisoformat(deadline_str)
+            except ValueError:
+                event.payment_deadline = None
+        else:
+            event.payment_deadline = None
+
         db.session.commit()
         flash('Evento actualizado.', 'success')
         return redirect(url_for('admin.event_detail', event_id=event_id))

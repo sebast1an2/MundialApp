@@ -179,10 +179,12 @@ Solo en step == 'cedula' (primer acceso al evento)
                   endif %}
                 </strong>
               </div>
+              {% if event.payment_deadline %}
               <div class="payment-fee-badge" style="background: #fff3e0; border-color: #f59e0b; color: #92400e;">
                 📅 Fecha límite de pago:
-                <strong>17 de junio de 2026</strong>
+                <strong>{{ event.payment_deadline | format_date_es }}</strong>
               </div>
+              {% endif %}
             </div>
             {% if event.nequi_number %}
             <div class="nequi-block">

@@ -191,3 +191,33 @@ WHERE table_schema = 'public'
 -- Resultado esperado:
 --   column_name | data_type         | column_default | is_nullable
 --   prize_type  | character varying | 'money'::...   | YES
+
+
+-- =============================================================================
+-- SECCIÓN 9 — Fecha límite de pago configurable por evento
+-- Generado: 2026-07-01
+-- Seguro de ejecutar múltiples veces (ADD COLUMN IF NOT EXISTS)
+-- =============================================================================
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 9.1  Nueva columna payment_deadline en events
+--      DEFAULT NULL → eventos existentes no muestran fecha (badge oculto).
+--      El admin puede configurarla por evento desde el formulario de edición.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+ALTER TABLE events
+    ADD COLUMN IF NOT EXISTS payment_deadline DATE DEFAULT NULL;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 9.2  Verificación
+-- ─────────────────────────────────────────────────────────────────────────────
+
+SELECT column_name, data_type, column_default, is_nullable
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name   = 'events'
+  AND column_name  = 'payment_deadline';
+
+-- Resultado esperado:
+--   column_name       | data_type | column_default | is_nullable
+--   payment_deadline  | date      | NULL           | YES

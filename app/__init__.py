@@ -21,6 +21,21 @@ def format_currency(value):
         return "0"
 
 
+_MESES_ES = [
+    '', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+]
+
+def format_date_es(value):
+    """Jinja2 filter: formats a date object as '5 de julio de 2026' in Spanish."""
+    if not value:
+        return ''
+    try:
+        return f"{value.day} de {_MESES_ES[value.month]} de {value.year}"
+    except (AttributeError, IndexError):
+        return str(value)
+
+
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -31,6 +46,7 @@ def create_app():
 
     # Register custom Jinja2 filters
     app.jinja_env.filters['format_currency'] = format_currency
+    app.jinja_env.filters['format_date_es']  = format_date_es
 
     from app.routes.auth import auth_bp
     from app.routes.admin import admin_bp

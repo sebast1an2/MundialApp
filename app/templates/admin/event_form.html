@@ -253,6 +253,20 @@
           </div>
           <small class="text-muted">Se mostrará a los participantes en la ventana informativa de inscripción.</small>
         </div>
+
+        <div class="mb-3">
+          <label class="form-label-custom">📅 Fecha límite de pago <small class="text-muted" style="text-transform:none;">(opcional)</small></label>
+          <div class="input-group" style="max-width: 260px;">
+            <span class="input-group-text" style="background: var(--bg); border: 2px solid var(--border); border-right: none; border-radius: var(--radius-sm) 0 0 var(--radius-sm); color: #92400e;">
+              <i class="bi bi-calendar-event"></i>
+            </span>
+            <input type="date" name="payment_deadline"
+                   class="form-control-custom"
+                   style="border-radius: 0 var(--radius-sm) var(--radius-sm) 0; border-left: none;"
+                   value="{{ event.payment_deadline.strftime('%Y-%m-%d') if event.payment_deadline else '' }}">
+          </div>
+          <small class="text-muted">Si se configura, se mostrará a los participantes como fecha límite para realizar el pago. Déjalo vacío para no mostrar ninguna fecha.</small>
+        </div>
       </div>
 
       <script>

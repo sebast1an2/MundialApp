@@ -50,6 +50,7 @@ class Event(db.Model):
     prize_third  = db.Column(db.Numeric(12, 2), nullable=True, default=0)   # Premio 3er lugar
     prize_type   = db.Column(db.String(10), nullable=False, default='money') # 'money' | 'percentage'
     nequi_number = db.Column(db.String(20), nullable=True, default='')      # Número Nequi para pagos
+    payment_deadline = db.Column(db.Date, nullable=True, default=None)      # Fecha límite de pago (opcional)
     template_id  = db.Column(db.Integer, db.ForeignKey('event_templates.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
