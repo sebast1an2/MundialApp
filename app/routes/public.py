@@ -37,7 +37,21 @@ def event_detail(event_id):
 
     phases = Phase.query.filter_by(event_id=event_id).order_by(Phase.phase_order).all()
     open_phase = event.get_active_phase()
-    has_predicted = participant.has_predicted_phase(open_phase.id) if (participant and open_phase) else False
+
+    # Registro incremental: controlar por partido, no por fase.
+    # has_predicted → True si YA tiene al menos una predicción en la fase.
+    # pending_count → cantidad de partidos SIN predicción en la fase abierta.
+    if open_phase and participant:
+        _pending = participant.get_pending_matches(open_phase.id)
+        pending_count = len(_pending)
+        has_predicted = participant.has_predicted_phase(open_phase.id)
+        # El participante "ya completó" la fase si no le quedan partidos pendientes
+        # (incluso si la fase tiene predicciones parciales de rondas anteriores).
+        has_all_predicted = has_predicted and pending_count == 0
+    else:
+        pending_count = 0
+        has_predicted = False
+        has_all_predicted = False
 
     # Top 10 for the public ranking preview
     top_participants = (Participant.query
@@ -83,6 +97,8 @@ def event_detail(event_id):
                            open_phase=open_phase,
                            participant=participant,
                            has_predicted=has_predicted,
+                           has_all_predicted=has_all_predicted,
+                           pending_count=pending_count,
                            top_participants=top_participants,
                            total_participants=total_participants,
                            matches_finished=matches_finished,
@@ -151,8 +167,11 @@ def participate(event_id):
         session.pop(f'participant_event_{event_id}', None)
         return redirect(url_for('public.validate_participant', event_id=event_id))
 
-    if participant.has_predicted_phase(open_phase.id):
-        flash(f'Ya realizaste tus predicciones para "{open_phase.name}".', 'info')
+    # Registro incremental: verificar partidos pendientes, no si pronosticó la fase.
+    pending = participant.get_pending_matches(open_phase.id)
+    if not pending:
+        # No quedan partidos nuevos → ya está todo diligenciado.
+        flash(f'Ya completaste todas tus predicciones para "{open_phase.name}".', 'info')
         return redirect(url_for('public.my_predictions',
                                event_id=event_id, cedula=participant.cedula))
 
@@ -179,23 +198,34 @@ def predictions_form(event_id, cedula):
         flash('No hay ninguna fase de predicción abierta.', 'warning')
         return redirect(url_for('public.event_detail', event_id=event_id))
 
-    if participant.has_predicted_phase(open_phase.id):
-        flash('Ya realizaste tus predicciones para esta fase.', 'info')
+    # Registro incremental: controlar por partido.
+    # Separar partidos pendientes (sin predicción) de los ya registrados.
+    pending_matches  = participant.get_pending_matches(open_phase.id)
+    predicted_map    = participant.get_predicted_matches_map(open_phase.id)
+
+    if not pending_matches and not predicted_map:
+        # La fase no tiene partidos cargados
+        flash('Esta fase no tiene partidos cargados aún.', 'warning')
+        return redirect(url_for('public.event_detail', event_id=event_id))
+
+    if not pending_matches:
+        # Ya están todos los partidos pronosticados → redirigir a mis-predicciones.
+        flash('Ya completaste todas tus predicciones para esta fase.', 'info')
         return redirect(url_for('public.my_predictions',
                                 event_id=event_id, cedula=cedula))
 
-    matches = (Match.query.filter_by(phase_id=open_phase.id)
-               .order_by(Match.match_date, Match.id).all())
-
-    if not matches:
-        flash('Esta fase no tiene partidos cargados aún.', 'warning')
-        return redirect(url_for('public.event_detail', event_id=event_id))
+    # Cargar todos los partidos de la fase ordenados para el template
+    all_phase_matches = (Match.query.filter_by(phase_id=open_phase.id)
+                         .order_by(Match.match_date, Match.id).all())
 
     active_scoring_configs = event.scoring_configs.filter_by(is_active=True).all()
 
     return render_template('public/predictions_form.html',
                            event=event, participant=participant,
-                           phase=open_phase, matches=matches,
+                           phase=open_phase,
+                           matches=all_phase_matches,
+                           pending_matches=pending_matches,
+                           predicted_map=predicted_map,
                            scoring_configs=active_scoring_configs)
 
 
@@ -217,26 +247,42 @@ def save_predictions(event_id):
         flash('Esta fase ya no está abierta para predicciones.', 'danger')
         return redirect(url_for('public.event_detail', event_id=event_id))
 
-    if participant.has_predicted_phase(phase_id):
-        flash('Ya realizaste tus predicciones para esta fase.', 'warning')
+    # ── Registro incremental por partido ──────────────────────────────────────
+    # Obtener el mapa de predicciones ya existentes para esta fase.
+    # Las predicciones existentes NUNCA se modifican, actualizan ni eliminan.
+    existing_pred_ids = {
+        p.match_id for p in Prediction.query.filter_by(
+            participant_id=participant.id, phase_id=phase_id
+        ).all()
+    }
+
+    # Obtener solo los partidos PENDIENTES (sin predicción previa).
+    # Estos son los únicos que deben ser validados y guardados.
+    all_matches = Match.query.filter_by(phase_id=phase_id).all()
+    pending_matches = [m for m in all_matches if m.id not in existing_pred_ids]
+
+    if not pending_matches:
+        # No quedan partidos por pronosticar.
+        flash('Ya completaste todas tus predicciones para esta fase.', 'info')
         return redirect(url_for('public.my_predictions',
                                 event_id=event_id, cedula=cedula))
 
-    matches = Match.query.filter_by(phase_id=phase_id).all()
     saved = 0
     errors = []
 
-    for match in matches:
+    for match in pending_matches:
+        # Ignorar partidos bloqueados sin silencio (el admin puede bloquear un
+        # partido nuevo antes de que el participante lo complete).
+        if match.is_locked:
+            continue
+
         home_raw = request.form.get(f'home_{match.id}', '').strip()
         away_raw = request.form.get(f'away_{match.id}', '').strip()
 
-        if match.is_locked:
-            if home_raw != '' or away_raw != '':
-                errors.append(f'El partido {match.home_team.name} vs {match.away_team.name} está bloqueado.')
-            continue
-
         if home_raw == '' or away_raw == '':
-            errors.append(f'Falta predicción para {match.home_team.name} vs {match.away_team.name}')
+            home_name = match.home_team.name if match.home_team else 'Equipo local'
+            away_name = match.away_team.name if match.away_team else 'Equipo visitante'
+            errors.append(f'Falta predicción para {home_name} vs {away_name}')
             continue
 
         try:
@@ -245,7 +291,9 @@ def save_predictions(event_id):
             if home_pred < 0 or away_pred < 0:
                 raise ValueError
         except ValueError:
-            errors.append(f'Predicción inválida para {match.home_team.name} vs {match.away_team.name}')
+            home_name = match.home_team.name if match.home_team else 'Equipo local'
+            away_name = match.away_team.name if match.away_team else 'Equipo visitante'
+            errors.append(f'Predicción inválida para {home_name} vs {away_name}')
             continue
 
         # Ganador en penales (solo relevante en empate dentro de fase eliminatoria)
@@ -270,7 +318,7 @@ def save_predictions(event_id):
                                 event_id=event_id, cedula=cedula))
 
     db.session.commit()
-    flash(f'¡Predicciones guardadas! ({saved} partidos). '
+    flash(f'¡Predicciones guardadas! ({saved} partido{"s" if saved != 1 else ""}). '
           'Ya no podrás modificarlas.', 'success')
     return redirect(url_for('public.my_predictions',
                             event_id=event_id, cedula=cedula))

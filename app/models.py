@@ -225,6 +225,34 @@ class Participant(db.Model):
             participant_id=self.id, phase_id=phase_id
         ).count() > 0
 
+    def get_pending_matches(self, phase_id):
+        """Retorna los Match de la fase que aún NO tienen predicción registrada.
+
+        Reutiliza la estructura existente: consulta las predicciones ya guardadas
+        para esta fase y devuelve los partidos cuyo match_id no aparece en ellas.
+        No modifica ni elimina nada; solo lectura.
+        """
+        predicted_ids = {
+            p.match_id for p in Prediction.query.filter_by(
+                participant_id=self.id, phase_id=phase_id
+            ).all()
+        }
+        return [
+            m for m in Match.query.filter_by(phase_id=phase_id)
+                                   .order_by(Match.match_date, Match.id).all()
+            if m.id not in predicted_ids
+        ]
+
+    def get_predicted_matches_map(self, phase_id):
+        """Retorna un dict {match_id: Prediction} con las predicciones ya registradas.
+
+        Permite al template mostrar el resultado ingresado en modo solo lectura.
+        """
+        preds = Prediction.query.filter_by(
+            participant_id=self.id, phase_id=phase_id
+        ).all()
+        return {p.match_id: p for p in preds}
+
     def __repr__(self):
         return f'<Participant {self.name} ({self.cedula})>'
 

@@ -68,15 +68,29 @@
         <div class="card-header-custom"><i class="bi bi-pencil-square me-2"></i>Participación</div>
         <div class="card-body-custom">
           {% if open_phase %}
-            {% if has_predicted %}
+            {% if has_all_predicted %}
+            {# ── Todos los partidos de la fase están completados ── #}
               <div class="alert alert-success border-0 d-flex align-items-center gap-3 mb-0">
                 <i class="bi bi-check-circle-fill" style="font-size: 1.5rem;"></i>
                 <div>
-                  <strong>Ya realizaste tu predicción</strong> para la fase "{{ open_phase.name }}".
+                  <strong>¡Ya completaste todas tus predicciones</strong> para la fase "{{ open_phase.name }}".
                   <p class="mb-0 small opacity-75">¡Mucha suerte! Puedes consultarlas en "Mis Predicciones".</p>
                 </div>
               </div>
+            {% elif has_predicted and pending_count > 0 %}
+            {# ── Hay predicciones pero también partidos nuevos pendientes ── #}
+              <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <div>
+                  <h5 class="mb-1" style="font-weight: 700;">¡Hay partidos nuevos para pronosticar!</h5>
+                  <p class="text-muted mb-0 small">Fase activa: <strong>{{ open_phase.name }}</strong>
+                    &mdash; <span style="color: var(--accent); font-weight: 700;">{{ pending_count }} partido{{ 's' if pending_count != 1 else '' }} pendiente{{ 's' if pending_count != 1 else '' }}</span></p>
+                </div>
+                <a href="{{ url_for('public.participate', event_id=event.id) }}" class="btn-primary-custom py-2 px-4">
+                  <i class="bi bi-pencil-fill me-1"></i> Completar predicciones
+                </a>
+              </div>
             {% else %}
+            {# ── Sin predicciones aún ── #}
               <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div>
                   <h5 class="mb-1" style="font-weight: 700;">¡Predicciones Abiertas!</h5>
@@ -500,15 +514,22 @@
 </div>
 
 {# ── Floating Action Button: Hacer Predicción ── #}
-{% if open_phase and not has_predicted %}
+{# Visible cuando la fase está abierta Y quedan partidos sin pronosticar #}
+{% if open_phase and not has_all_predicted %}
 <a href="{{ url_for('public.participate', event_id=event.id) }}"
    id="fab-predict"
-   aria-label="Hacer mi predicción — {{ open_phase.name }}"
-   title="Hacer mi predicción">
+   aria-label="{% if has_predicted and pending_count > 0 %}Completar predicciones — {{ open_phase.name }}{% else %}Hacer mi predicción — {{ open_phase.name }}{% endif %}"
+   title="{% if has_predicted and pending_count > 0 %}Completar predicciones pendientes{% else %}Hacer mi predicción{% endif %}">
   <span class="fab-inner">
-    <i class="bi bi-play-fill fab-icon"></i>
-    <span class="fab-line1">Hacer</span>
-    <span class="fab-line2">Predicción</span>
+    {% if has_predicted and pending_count > 0 %}
+      <i class="bi bi-pencil-fill fab-icon"></i>
+      <span class="fab-line1">Completar</span>
+      <span class="fab-line2">{{ pending_count }} partido{{ 's' if pending_count != 1 else '' }}</span>
+    {% else %}
+      <i class="bi bi-play-fill fab-icon"></i>
+      <span class="fab-line1">Hacer</span>
+      <span class="fab-line2">Predicción</span>
+    {% endif %}
   </span>
 </a>
 
