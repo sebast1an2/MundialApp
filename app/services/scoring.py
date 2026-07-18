@@ -96,8 +96,8 @@ def calculate_match_scores(match_id):
                 points += pen_cfg.points_value
                 score_type = score_type + '+pen'
 
-        # Bonus: Final winner
-        if 'final' in match.phase.name.lower():
+        # Bonus: Final winner (exact match only — avoids triggering on "Semifinal")
+        if match.phase.name.strip().lower() == 'final':
             final_cfg = configs.get('final_winner_bonus')
             if final_cfg:
                 got_winner = False
